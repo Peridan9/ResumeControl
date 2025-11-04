@@ -63,18 +63,21 @@ curl http://localhost:8080/api/health
 - [x] Create test file with database connection tests
   - [x] TestDatabaseConnection test
   - [x] TestHealthEndpoint test
-- [ ] Install goose
+- [x] Install goose
   ```bash
   go install github.com/pressly/goose/v3/cmd/goose@latest
   ```
-- [ ] Create first migration
-  - [ ] Create `migrations/` directory
-  - [ ] Create `001_initial_schema.up.sql`
-  - [ ] Create `001_initial_schema.down.sql`
-  - [ ] Define tables: companies, jobs, applications
+- [x] Create first migration
+  - [x] Create `sql/schema/` directory
+  - [x] Create separate migration files for each table (combined up/down):
+    - [x] `001_companies.sql` (with `-- +goose Up` and `-- +goose Down` sections)
+    - [x] `002_jobs.sql` (with `-- +goose Up` and `-- +goose Down` sections)
+    - [x] `003_applications.sql` (with `-- +goose Up` and `-- +goose Down` sections)
+  - [x] Add goose tags (`-- +goose Up` and `-- +goose Down`)
+  - [x] Add case-insensitive unique index for company names
 - [ ] Run migration
   ```bash
-  goose -dir migrations postgres "$DB_URL" up
+  goose -dir sql/schema postgres "$DB_URL" up
   ```
 
 **What You'll Learn:**
@@ -83,9 +86,10 @@ curl http://localhost:8080/api/health
 - Database migrations with goose
 - SQL schema design
 
-**Files to Create:**
-- `backend/migrations/001_initial_schema.up.sql`
-- `backend/migrations/001_initial_schema.down.sql`
+**Files Created:**
+- `backend/sql/schema/001_companies.sql` (combined up/down)
+- `backend/sql/schema/002_jobs.sql` (combined up/down)
+- `backend/sql/schema/003_applications.sql` (combined up/down)
 
 **Files to Modify:**
 - `backend/main.go` - Add database connection
@@ -100,9 +104,10 @@ curl http://localhost:8080/api/health
 - [ ] Add helper functions in `main.go` for database queries
   - [ ] `getAllCompanies(db)` - SELECT all companies
   - [ ] `getCompanyByID(db, id)` - SELECT one company
-  - [ ] `createCompany(db, company)` - INSERT company
-  - [ ] `updateCompany(db, id, company)` - UPDATE company
+  - [ ] `createCompany(db, company)` - INSERT company (with name normalization)
+  - [ ] `updateCompany(db, id, company)` - UPDATE company (with name normalization)
   - [ ] `deleteCompany(db, id)` - DELETE company
+  - [ ] **Note:** Company name normalization (handle "Google" vs "google" vs "GOOGLE") will be implemented in the backend when creating/updating companies
 - [ ] Create HTTP handlers in `main.go`
   - [ ] GET /api/companies
   - [ ] GET /api/companies/:id
@@ -128,7 +133,7 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Phase 4: Set Up sqlc for Type Safety ⏳
+## Phase 4: Set Up sqlc for Type Safety ⏳ (IN PROGRESS)
 
 **Goal:** Extract SQL to files and generate type-safe Go code
 
@@ -136,16 +141,11 @@ curl http://localhost:8080/api/health
   ```bash
   go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
   ```
-- [ ] Create `sqlc.yaml` configuration
-- [ ] Move SQL queries to `sql/queries/companies.sql`
-- [ ] Write SQL with sqlc annotations:
-  ```sql
-  -- name: GetAllCompanies :many
-  SELECT * FROM companies;
-  
-  -- name: GetCompanyByID :one
-  SELECT * FROM companies WHERE id = $1;
-  ```
+- [x] Create `sqlc.yaml` configuration
+- [x] Create SQL queries with sqlc annotations:
+  - [x] `sql/queries/companies.sql` - CRUD operations for companies
+  - [x] `sql/queries/jobs.sql` - CRUD operations for jobs
+  - [x] `sql/queries/applications.sql` - CRUD operations for applications
 - [ ] Generate Go code:
   ```bash
   sqlc generate
@@ -238,17 +238,17 @@ curl http://localhost:8080/api/health
 
 ### goose Commands:
 ```bash
-# Create new migration
-goose -dir migrations create migration_name sql
+# Create new migration (future migrations)
+goose -dir sql/schema create migration_name sql
 
 # Apply migrations
-goose -dir migrations postgres "$DB_URL" up
+goose -dir sql/schema postgres "$DB_URL" up
 
 # Rollback one migration
-goose -dir migrations postgres "$DB_URL" down
+goose -dir sql/schema postgres "$DB_URL" down
 
 # Check migration status
-goose -dir migrations postgres "$DB_URL" status
+goose -dir sql/schema postgres "$DB_URL" status
 ```
 
 ### sqlc Commands:

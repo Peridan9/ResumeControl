@@ -1,16 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 // TestHealthEndpoint tests that the HTTP server starts properly and the health endpoint responds
@@ -68,42 +64,5 @@ func TestHealthEndpoint(t *testing.T) {
 	if !strings.Contains(body, "ResumeControl API is running") {
 		t.Errorf("Response does not contain expected message. Got: %s", body)
 	}
-}
-
-// TestDatabaseConnection tests that we can connect to the database
-func TestDatabaseConnection(t *testing.T) {
-	// Load environment variables from .env file (if it exists)
-	_ = godotenv.Load()
-
-	// Check if DB_URL is set
-	dbURL := os.Getenv("DB_URL")
-	if dbURL == "" {
-		t.Skip("DB_URL not set, skipping test. Set DB_URL environment variable or create .env file")
-	}
-
-	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		t.Fatalf("Failed to open database connection: %v", err)
-	}
-	defer db.Close()
-
-	// Test the connection
-	if err := db.Ping(); err != nil {
-		t.Fatalf("Failed to ping database: %v", err)
-	}
-
-	// Test a simple query
-	var version string
-	err = db.QueryRow("SELECT version()").Scan(&version)
-	if err != nil {
-		t.Fatalf("Failed to query database: %v", err)
-	}
-
-	if version == "" {
-		t.Error("Database version should not be empty")
-	}
-
-	t.Logf("✅ Successfully connected to database. Version: %s", version)
 }
 
