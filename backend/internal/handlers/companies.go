@@ -15,14 +15,12 @@ import (
 // CompanyHandler handles HTTP requests for companies
 type CompanyHandler struct {
 	queries *database.Queries
-	ctx     context.Context
 }
 
 // NewCompanyHandler creates a new company handler
 func NewCompanyHandler(queries *database.Queries) *CompanyHandler {
 	return &CompanyHandler{
 		queries: queries,
-		ctx:     context.Background(),
 	}
 }
 
@@ -56,7 +54,8 @@ func normalizeCompanyName(name string) string {
 // GetAllCompanies handles GET /api/companies
 // Returns all companies
 func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
-	companies, err := h.queries.GetAllCompanies(h.ctx)
+	ctx := c.Request.Context()
+	companies, err := h.queries.GetAllCompanies(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to fetch companies",
@@ -83,7 +82,8 @@ func (h *CompanyHandler) GetCompanyByID(c *gin.Context) {
 	}
 
 	// Query database
-	company, err := h.queries.GetCompanyByID(h.ctx, int32(id))
+	ctx := c.Request.Context()
+	company, err := h.queries.GetCompanyByID(ctx, int32(id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -131,8 +131,11 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	// Normalize company name
 	normalizedName := normalizeCompanyName(req.Name)
 
+	// Get request context
+	ctx := c.Request.Context()
+
 	// Check if company with this normalized name already exists
-	existingCompany, err := h.queries.GetCompanyByName(h.ctx, normalizedName)
+	existingCompany, err := h.queries.GetCompanyByName(ctx, normalizedName)
 	if err == nil {
 		// Company exists - return it (get-or-create pattern)
 		c.JSON(http.StatusOK, existingCompany)
@@ -148,7 +151,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	}
 
 	// Company doesn't exist - create it
-	company, err := h.queries.CreateCompany(h.ctx, database.CreateCompanyParams{
+	company, err := h.queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    normalizedName,
 		Website: sql.NullString{String: req.Website, Valid: req.Website != ""},
 	})
@@ -156,7 +159,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 		// Check for race condition (another request created it between our check and create)
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 			// Fetch the company that was just created by another request
-			existingCompany, fetchErr := h.queries.GetCompanyByName(h.ctx, normalizedName)
+			existingCompany, fetchErr := h.queries.GetCompanyByName(ctx, normalizedName)
 			if fetchErr == nil {
 				c.JSON(http.StatusOK, existingCompany)
 				return
@@ -211,8 +214,11 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 		return
 	}
 
+	// Get request context
+	ctx := c.Request.Context()
+
 	// Check if company exists
-	_, err = h.queries.GetCompanyByID(h.ctx, int32(id))
+	_, err = h.queries.GetCompanyByID(ctx, int32(id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -231,7 +237,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	normalizedName := normalizeCompanyName(req.Name)
 
 	// Check if another company with this normalized name already exists
-	existingCompany, err := h.queries.GetCompanyByName(h.ctx, normalizedName)
+	existingCompany, err := h.queries.GetCompanyByName(ctx, normalizedName)
 	if err == nil && existingCompany.ID != int32(id) {
 		// Another company with this name exists
 		c.JSON(http.StatusConflict, gin.H{
@@ -250,7 +256,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	}
 
 	// Update company with normalized name
-	company, err := h.queries.UpdateCompany(h.ctx, database.UpdateCompanyParams{
+	company, err := h.queries.UpdateCompany(ctx, database.UpdateCompanyParams{
 		ID:      int32(id),
 		Name:    normalizedName,
 		Website: sql.NullString{String: req.Website, Valid: req.Website != ""},
@@ -287,8 +293,11 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 		return
 	}
 
+	// Get request context
+	ctx := c.Request.Context()
+
 	// Check if company exists
-	_, err = h.queries.GetCompanyByID(h.ctx, int32(id))
+	_, err = h.queries.GetCompanyByID(ctx, int32(id))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -304,7 +313,7 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 	}
 
 	// Delete company
-	err = h.queries.DeleteCompany(h.ctx, int32(id))
+	err = h.queries.DeleteCompany(ctx, int32(id))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to delete company",

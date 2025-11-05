@@ -70,18 +70,11 @@ func main() {
 		})
 	})
 
-	// Initialize handlers
-	companyHandler := handlers.NewCompanyHandler(queries)
-
-	// Company routes
-	api := r.Group("/api")
-	{
-		api.GET("/companies", companyHandler.GetAllCompanies)
-		api.GET("/companies/:id", companyHandler.GetCompanyByID)
-		api.POST("/companies", companyHandler.CreateCompany)
-		api.PUT("/companies/:id", companyHandler.UpdateCompany)
-		api.DELETE("/companies/:id", companyHandler.DeleteCompany)
+	// Initialize handlers config and setup routes
+	cfg := handlers.Config{
+		DB: queries,
 	}
+	cfg.SetupRoutes(r)
 
 	// Get port from environment variable or use default
 	port := os.Getenv("PORT")
