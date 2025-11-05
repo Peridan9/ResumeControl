@@ -41,6 +41,10 @@ Thumbs.db
 # Logs
 *.log
 
+# postman tests
+POSTMAN_TESTS/
+POSTMAN_TESTS.md
+
 # Generated files (sqlc will generate these - added in Phase 4)
 # We'll add this when we need it:
 # internal/database/

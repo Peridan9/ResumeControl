@@ -43,7 +43,7 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Phase 2: Add Database Connection ✅ (PARTIALLY COMPLETE)
+## Phase 2: Add Database Connection ✅ (COMPLETE)
 
 **Goal:** Connect to PostgreSQL and set up migrations
 
@@ -75,7 +75,7 @@ curl http://localhost:8080/api/health
     - [x] `003_applications.sql` (with `-- +goose Up` and `-- +goose Down` sections)
   - [x] Add goose tags (`-- +goose Up` and `-- +goose Down`)
   - [x] Add case-insensitive unique index for company names
-- [ ] Run migration
+- [x] Run migration
   ```bash
   goose -dir sql/schema postgres "$DB_URL" up
   ```
@@ -97,47 +97,44 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Phase 3: Write Raw SQL Queries in main.go ⏳
+## Phase 3: Create HTTP Handlers ✅ (COMPLETE - Companies Only)
 
-**Goal:** Write SQL queries directly in code to understand what we need
+**Goal:** Create HTTP handlers using sqlc generated code
 
-- [ ] Add helper functions in `main.go` for database queries
-  - [ ] `getAllCompanies(db)` - SELECT all companies
-  - [ ] `getCompanyByID(db, id)` - SELECT one company
-  - [ ] `createCompany(db, company)` - INSERT company (with name normalization)
-  - [ ] `updateCompany(db, id, company)` - UPDATE company (with name normalization)
-  - [ ] `deleteCompany(db, id)` - DELETE company
-  - [ ] **Note:** Company name normalization (handle "Google" vs "google" vs "GOOGLE") will be implemented in the backend when creating/updating companies
-- [ ] Create HTTP handlers in `main.go`
-  - [ ] GET /api/companies
-  - [ ] GET /api/companies/:id
-  - [ ] POST /api/companies
-  - [ ] PUT /api/companies/:id
-  - [ ] DELETE /api/companies/:id
+- [x] Create `internal/handlers` directory
+- [x] Create `internal/handlers/companies.go` with CompanyHandler struct
+- [x] Implement company name normalization (trim, lowercase, smart capitalization)
+- [x] Create HTTP handlers for companies:
+  - [x] GET /api/companies - GetAllCompanies
+  - [x] GET /api/companies/:id - GetCompanyByID
+  - [x] POST /api/companies - CreateCompany (with normalization)
+  - [x] PUT /api/companies/:id - UpdateCompany (with normalization)
+  - [x] DELETE /api/companies/:id - DeleteCompany
+- [x] Update `main.go` to use handlers
+- [x] Register routes in `main.go`
 - [ ] Test all endpoints with Postman/curl
 - [ ] Repeat for jobs and applications
 
-**What You'll Learn:**
-- Writing SQL in Go
-- Using database/sql package
-- Struct scanning (sql.Rows to Go structs)
-- Error handling with databases
+**What You Learned:**
+- Handler pattern in Go/Gin
+- Using sqlc generated code in handlers
+- Request/response handling (JSON parsing, validation)
+- Error handling and HTTP status codes
+- Company name normalization logic
 
-**Files to Modify:**
-- `backend/main.go` - Add all queries and handlers
+**Files Created:**
+- `backend/internal/handlers/companies.go` - Company handlers
 
-**Why This Phase:**
-- See SQL queries in code (easier to understand)
-- Understand what queries you actually need
-- Learn database/sql before using sqlc
+**Files Modified:**
+- `backend/main.go` - Added handler initialization and routes
 
 ---
 
-## Phase 4: Set Up sqlc for Type Safety ⏳ (IN PROGRESS)
+## Phase 4: Set Up sqlc for Type Safety ✅ (COMPLETE)
 
 **Goal:** Extract SQL to files and generate type-safe Go code
 
-- [ ] Install sqlc CLI
+- [x] Install sqlc CLI
   ```bash
   go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
   ```
@@ -146,13 +143,14 @@ curl http://localhost:8080/api/health
   - [x] `sql/queries/companies.sql` - CRUD operations for companies
   - [x] `sql/queries/jobs.sql` - CRUD operations for jobs
   - [x] `sql/queries/applications.sql` - CRUD operations for applications
-- [ ] Generate Go code:
+- [x] Generate Go code:
   ```bash
   sqlc generate
   ```
-- [ ] Update `main.go` to use generated code
-  - [ ] Replace raw SQL with generated functions
-  - [ ] Use generated types
+- [x] Update `main.go` to use generated code
+  - [x] Create queries instance with `database.New(db)`
+  - [x] Use generated types in handlers
+  - [x] Create test file to verify sqlc code works
 
 **What You'll Learn:**
 - sqlc workflow (SQL → Go code)
@@ -172,27 +170,34 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Phase 5: Extract Handlers (if main.go gets too large) ⏳
+## Phase 5: Create Handlers for Jobs and Applications ⏳
 
-**Goal:** Extract handler functions when main.go becomes hard to read
+**Goal:** Create HTTP handlers for jobs and applications (similar to companies)
 
-**Only do this if:** main.go is getting too long (>300 lines) or hard to navigate
+**Note:** Handlers are already extracted to `internal/handlers/` directory (done in Phase 3)
 
-- [ ] Create `internal/handler/companies.go`
-- [ ] Move company handlers to separate file
-- [ ] Create `internal/handler/jobs.go`
-- [ ] Create `internal/handler/applications.go`
-- [ ] Update `main.go` to import and use handlers
+- [ ] Create `internal/handlers/jobs.go` with JobHandler struct
+  - [ ] GET /api/jobs
+  - [ ] GET /api/jobs/:id
+  - [ ] GET /api/companies/:companyId/jobs (get jobs by company)
+  - [ ] POST /api/jobs
+  - [ ] PUT /api/jobs/:id
+  - [ ] DELETE /api/jobs/:id
+- [ ] Create `internal/handlers/applications.go` with ApplicationHandler struct
+  - [ ] GET /api/applications
+  - [ ] GET /api/applications/:id
+  - [ ] GET /api/jobs/:jobId/applications (get applications by job)
+  - [ ] GET /api/applications?status=applied (filter by status)
+  - [ ] POST /api/applications
+  - [ ] PUT /api/applications/:id
+  - [ ] DELETE /api/applications/:id
+- [ ] Register routes in `main.go`
+- [ ] Test all endpoints
 
 **What You'll Learn:**
-- Code organization
-- Package structure
-- When to extract code
-
-**Files to Create:**
-- `backend/internal/handler/companies.go`
-- `backend/internal/handler/jobs.go`
-- `backend/internal/handler/applications.go`
+- Repeating patterns for different resources
+- Relationship handling (company → jobs, job → applications)
+- Query parameter filtering
 
 ---
 

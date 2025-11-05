@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/peridan9/resumecontrol/backend/internal/database"
+	"github.com/peridan9/resumecontrol/backend/internal/handlers"
 	_ "github.com/lib/pq" // PostgreSQL driver (imported for side effects)
 )
 
@@ -43,6 +45,9 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// Create sqlc queries instance
+	queries := database.New(db)
+
 	// Initialize Gin router with default middleware (logger and recovery)
 	r := gin.Default()
 
@@ -64,6 +69,19 @@ func main() {
 			"database": "connected",
 		})
 	})
+
+	// Initialize handlers
+	companyHandler := handlers.NewCompanyHandler(queries)
+
+	// Company routes
+	api := r.Group("/api")
+	{
+		api.GET("/companies", companyHandler.GetAllCompanies)
+		api.GET("/companies/:id", companyHandler.GetCompanyByID)
+		api.POST("/companies", companyHandler.CreateCompany)
+		api.PUT("/companies/:id", companyHandler.UpdateCompany)
+		api.DELETE("/companies/:id", companyHandler.DeleteCompany)
+	}
 
 	// Get port from environment variable or use default
 	port := os.Getenv("PORT")
