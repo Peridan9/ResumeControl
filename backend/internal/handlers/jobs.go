@@ -69,11 +69,11 @@ func (h *JobHandler) GetJobByID(c *gin.Context) {
 	c.JSON(http.StatusOK, job)
 }
 
-// GetJobsByCompanyID handles GET /api/companies/:companyId/jobs
+// GetJobsByCompanyID handles GET /api/companies/:id/jobs
 // Returns all jobs for a specific company
 func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
 	// Get company ID from URL parameter
-	companyIDStr := c.Param("companyId")
+	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

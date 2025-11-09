@@ -23,7 +23,8 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 		// Company routes
 		api.GET("/companies", companyHandler.GetAllCompanies)
 		// Nested route: Get jobs by company (must be before /companies/:id)
-		api.GET("/companies/:companyId/jobs", jobHandler.GetJobsByCompanyID)
+		// Use :id instead of :companyId to avoid route conflict
+		api.GET("/companies/:id/jobs", jobHandler.GetJobsByCompanyID)
 		api.GET("/companies/:id", companyHandler.GetCompanyByID)
 		api.POST("/companies", companyHandler.CreateCompany)
 		api.PUT("/companies/:id", companyHandler.UpdateCompany)
@@ -32,7 +33,8 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 		// Job routes
 		api.GET("/jobs", jobHandler.GetAllJobs)
 		// Nested route: Get applications by job (must be before /jobs/:id)
-		api.GET("/jobs/:jobId/applications", applicationHandler.GetApplicationsByJobID)
+		// Use :id instead of :jobId to avoid route conflict
+		api.GET("/jobs/:id/applications", applicationHandler.GetApplicationsByJobID)
 		api.GET("/jobs/:id", jobHandler.GetJobByID)
 		api.POST("/jobs", jobHandler.CreateJob)
 		api.PUT("/jobs/:id", jobHandler.UpdateJob)

@@ -87,11 +87,11 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 	c.JSON(http.StatusOK, application)
 }
 
-// GetApplicationsByJobID handles GET /api/jobs/:jobId/applications
+// GetApplicationsByJobID handles GET /api/jobs/:id/applications
 // Returns all applications for a specific job
 func (h *ApplicationHandler) GetApplicationsByJobID(c *gin.Context) {
 	// Get job ID from URL parameter
-	jobIDStr := c.Param("jobId")
+	jobIDStr := c.Param("id")
 	jobID, err := strconv.Atoi(jobIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
