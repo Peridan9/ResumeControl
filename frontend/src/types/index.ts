@@ -1,22 +1,27 @@
 // Type definitions matching backend models
+// Note: Backend returns sql.NullString and sql.NullTime as objects
+// These types handle both formats for compatibility
+
+type NullString = string | null | { String: string; Valid: boolean }
+type NullTime = string | { Time: string; Valid: boolean }
 
 export interface Company {
   id: number
   name: string
-  website: string | null
-  created_at: string
-  updated_at: string
+  website: NullString
+  created_at: NullTime
+  updated_at: NullTime
 }
 
 export interface Job {
   id: number
   company_id: number
   title: string
-  description: string | null
-  requirements: string | null
-  location: string | null
-  created_at: string
-  updated_at: string
+  description: NullString
+  requirements: NullString
+  location: NullString
+  created_at: NullTime
+  updated_at: NullTime
 }
 
 export interface Application {
@@ -24,9 +29,9 @@ export interface Application {
   job_id: number
   status: string
   applied_date: string
-  notes: string | null
-  created_at: string
-  updated_at: string
+  notes: NullString
+  created_at: NullTime
+  updated_at: NullTime
 }
 
 // Request/Response types
