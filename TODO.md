@@ -97,7 +97,7 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Phase 3: Create HTTP Handlers ✅ (COMPLETE - Companies Only)
+## Phase 3: Create HTTP Handlers ✅ (COMPLETE)
 
 **Goal:** Create HTTP handlers using sqlc generated code
 
@@ -112,8 +112,8 @@ curl http://localhost:8080/api/health
   - [x] DELETE /api/companies/:id - DeleteCompany
 - [x] Update `main.go` to use handlers
 - [x] Register routes in `main.go`
-- [ ] Test all endpoints with Postman/curl
-- [ ] Repeat for jobs and applications
+- [x] Create centralized route configuration (`internal/handlers/config.go`)
+- [x] Test all endpoints with automated tests
 
 **What You Learned:**
 - Handler pattern in Go/Gin
@@ -170,38 +170,101 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Phase 5: Create Handlers for Jobs and Applications ⏳
+## Phase 5: Create Handlers for Jobs and Applications ✅ (COMPLETE)
 
 **Goal:** Create HTTP handlers for jobs and applications (similar to companies)
 
 **Note:** Handlers are already extracted to `internal/handlers/` directory (done in Phase 3)
 
-- [ ] Create `internal/handlers/jobs.go` with JobHandler struct
-  - [ ] GET /api/jobs
-  - [ ] GET /api/jobs/:id
-  - [ ] GET /api/companies/:companyId/jobs (get jobs by company)
-  - [ ] POST /api/jobs
-  - [ ] PUT /api/jobs/:id
-  - [ ] DELETE /api/jobs/:id
-- [ ] Create `internal/handlers/applications.go` with ApplicationHandler struct
-  - [ ] GET /api/applications
-  - [ ] GET /api/applications/:id
-  - [ ] GET /api/jobs/:jobId/applications (get applications by job)
-  - [ ] GET /api/applications?status=applied (filter by status)
-  - [ ] POST /api/applications
-  - [ ] PUT /api/applications/:id
-  - [ ] DELETE /api/applications/:id
-- [ ] Register routes in `main.go`
-- [ ] Test all endpoints
+- [x] Create `internal/handlers/jobs.go` with JobHandler struct
+  - [x] GET /api/jobs - GetAllJobs
+  - [x] GET /api/jobs/:id - GetJobByID
+  - [x] GET /api/companies/:id/jobs - GetJobsByCompanyID (nested route)
+  - [x] POST /api/jobs - CreateJob
+  - [x] PUT /api/jobs/:id - UpdateJob
+  - [x] DELETE /api/jobs/:id - DeleteJob
+- [x] Create `internal/handlers/applications.go` with ApplicationHandler struct
+  - [x] GET /api/applications - GetAllApplications
+  - [x] GET /api/applications/:id - GetApplicationByID
+  - [x] GET /api/jobs/:id/applications - GetApplicationsByJobID (nested route)
+  - [x] GET /api/applications?status=applied - Filter by status (query parameter)
+  - [x] POST /api/applications - CreateApplication
+  - [x] PUT /api/applications/:id - UpdateApplication
+  - [x] DELETE /api/applications/:id - DeleteApplication
+- [x] Register routes in `internal/handlers/config.go`
+- [x] Create comprehensive automated tests for all handlers
+  - [x] `companies_test.go` - Company handler tests
+  - [x] `jobs_test.go` - Job handler tests
+  - [x] `applications_test.go` - Application handler tests
+  - [x] `test_helpers.go` - Shared test setup
 
-**What You'll Learn:**
+**What You Learned:**
 - Repeating patterns for different resources
 - Relationship handling (company → jobs, job → applications)
 - Query parameter filtering
+- Nested routes in Gin
+- Route parameter naming consistency
+- Comprehensive test coverage
+
+**Files Created:**
+- `backend/internal/handlers/jobs.go` - Job handlers
+- `backend/internal/handlers/applications.go` - Application handlers
+- `backend/internal/handlers/config.go` - Centralized route configuration
+- `backend/internal/handlers/companies_test.go` - Company tests
+- `backend/internal/handlers/jobs_test.go` - Job tests
+- `backend/internal/handlers/applications_test.go` - Application tests
+- `backend/internal/handlers/test_helpers.go` - Test utilities
 
 ---
 
-## Phase 6: Add Services (only if needed) ⏳
+## Phase 6: Backend Polish & Production Readiness ⏳
+
+**Goal:** Add essential middleware and improvements for frontend integration and production use
+
+- [ ] Add CORS middleware for frontend integration
+  - [ ] Install CORS package: `go get github.com/gin-contrib/cors`
+  - [ ] Configure CORS in `main.go` to allow frontend origin
+  - [ ] Test CORS headers in responses
+- [ ] Add request validation middleware
+  - [ ] Validate request body sizes
+  - [ ] Add rate limiting (optional, for production)
+- [ ] Improve error handling
+  - [ ] Create consistent error response format
+  - [ ] Add error logging middleware
+  - [ ] Handle panics gracefully
+- [ ] Add logging
+  - [ ] Structured logging (e.g., using `logrus` or `zap`)
+  - [ ] Request/response logging middleware
+  - [ ] Log database query errors
+- [ ] Add API documentation
+  - [ ] Consider Swagger/OpenAPI documentation
+  - [ ] Document all endpoints with examples
+- [ ] Add pagination for list endpoints
+  - [ ] Add `?page=1&limit=10` query parameters
+  - [ ] Update GET endpoints to support pagination
+  - [ ] Return pagination metadata in responses
+- [ ] Add search/filtering capabilities
+  - [ ] Search companies by name
+  - [ ] Filter jobs by company, location, etc.
+  - [ ] Advanced filtering for applications
+
+**What You'll Learn:**
+- Middleware in Gin
+- CORS configuration
+- Error handling patterns
+- Logging best practices
+- API pagination
+- Search and filtering
+
+**Optional Enhancements:**
+- [ ] Add request ID middleware for tracing
+- [ ] Add health check with database status
+- [ ] Add metrics/monitoring endpoints
+- [ ] Add graceful shutdown handling
+
+---
+
+## Phase 7: Add Services (only if needed) ⏳
 
 **Goal:** Extract business logic if handlers get too complex
 
