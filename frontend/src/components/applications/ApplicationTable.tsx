@@ -1,5 +1,7 @@
+import { useNavigate } from 'react-router-dom'
 import type { Application, Job, Company } from '../../types'
-import { nullTimeToString } from '../../utils/helpers'
+import { nullTimeToString, nullStringToString } from '../../utils/helpers'
+import Tooltip from '../ui/Tooltip'
 
 interface ApplicationTableProps {
   applications: Application[]
@@ -14,6 +16,8 @@ export default function ApplicationTable({
   companies,
   emptyMessage = 'No applications found',
 }: ApplicationTableProps) {
+  const navigate = useNavigate()
+
   // Helper function to get job by ID
   const getJob = (jobId: number): Job | undefined => {
     return jobs.find((job) => job.id === jobId)
@@ -22,6 +26,15 @@ export default function ApplicationTable({
   // Helper function to get company by ID
   const getCompany = (companyId: number): Company | undefined => {
     return companies.find((company) => company.id === companyId)
+  }
+
+  // Helper function to get notes text
+  const getNotesText = (notes: string | null | { String: string; Valid: boolean }): string | null => {
+    return nullStringToString(notes)
+  }
+
+  const handleRowClick = (applicationId: number) => {
+    navigate(`/applications/${applicationId}`)
   }
 
   // Helper function to format date
@@ -77,15 +90,24 @@ export default function ApplicationTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Last Updated
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Notes
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {applications?.map((application) => {
               const job = getJob(application.job_id)
               const company = job ? getCompany(job.company_id) : undefined
+              const notesText = getNotesText(application.notes)
+              const hasNotes = notesText && notesText.trim() !== ''
 
               return (
-                <tr key={application.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={application.id}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => handleRowClick(application.id)}
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {company?.name || 'Unknown Company'}
                   </td>
@@ -100,6 +122,15 @@ export default function ApplicationTable({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatNullTime(application.updated_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {hasNotes ? (
+                      <Tooltip content={notesText} position="left" maxWidth="max">
+                        <span className="text-lg">📝</span>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                 </tr>
               )
