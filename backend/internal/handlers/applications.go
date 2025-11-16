@@ -31,10 +31,7 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 		// Use status filter
 		applications, err := h.queries.GetApplicationsByStatus(ctx, status)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to fetch applications",
-				"details": err.Error(),
-			})
+			sendInternalError(c, "Failed to fetch applications", err)
 			return
 		}
 		c.JSON(http.StatusOK, applications)
@@ -44,10 +41,7 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 	// Return all applications
 	applications, err := h.queries.GetAllApplications(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch applications",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to fetch applications", err)
 		return
 	}
 	c.JSON(http.StatusOK, applications)
@@ -60,27 +54,14 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid application ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid application ID", "ID must be a number")
 		return
 	}
 
 	// Query database
 	ctx := c.Request.Context()
 	application, err := h.queries.GetApplicationByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Application not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch application",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 
@@ -94,10 +75,7 @@ func (h *ApplicationHandler) GetApplicationsByJobID(c *gin.Context) {
 	jobIDStr := c.Param("id")
 	jobID, err := strconv.Atoi(jobIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid job ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid job ID", "ID must be a number")
 		return
 	}
 
@@ -105,10 +83,7 @@ func (h *ApplicationHandler) GetApplicationsByJobID(c *gin.Context) {
 	ctx := c.Request.Context()
 	applications, err := h.queries.GetApplicationsByJobID(ctx, int32(jobID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch applications",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to fetch applications", err)
 		return
 	}
 
@@ -130,28 +105,20 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 	// Parse JSON body
 	var req CreateApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"details": err.Error(),
-		})
+		sendBadRequest(c, "Invalid request body", err.Error())
 		return
 	}
 
 	// Validate status is not empty
 	if req.Status == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Status is required",
-		})
+		sendBadRequest(c, "Status is required")
 		return
 	}
 
 	// Parse applied_date
 	appliedDate, err := time.Parse("2006-01-02", req.AppliedDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid applied_date format",
-			"details": "Date must be in YYYY-MM-DD format (e.g., 2024-01-15)",
-		})
+		sendBadRequest(c, "Invalid applied_date format", "Date must be in YYYY-MM-DD format (e.g., 2024-01-15)")
 		return
 	}
 
@@ -160,17 +127,7 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 
 	// Validate job exists
 	_, err = h.queries.GetJobByID(ctx, req.JobID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Job not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to validate job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
@@ -181,11 +138,7 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},
 	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create application",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 
@@ -206,38 +159,27 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid application ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid application ID", "ID must be a number")
 		return
 	}
 
 	// Parse JSON body
 	var req UpdateApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"details": err.Error(),
-		})
+		sendBadRequest(c, "Invalid request body", err.Error())
 		return
 	}
 
 	// Validate status is not empty
 	if req.Status == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Status is required",
-		})
+		sendBadRequest(c, "Status is required")
 		return
 	}
 
 	// Parse applied_date
 	appliedDate, err := time.Parse("2006-01-02", req.AppliedDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid applied_date format",
-			"details": "Date must be in YYYY-MM-DD format (e.g., 2024-01-15)",
-		})
+		sendBadRequest(c, "Invalid applied_date format", "Date must be in YYYY-MM-DD format (e.g., 2024-01-15)")
 		return
 	}
 
@@ -246,17 +188,7 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 
 	// Check if application exists
 	_, err = h.queries.GetApplicationByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Application not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch application",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 
@@ -267,11 +199,7 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},
 	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update application",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 
@@ -285,10 +213,7 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid application ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid application ID", "ID must be a number")
 		return
 	}
 
@@ -297,27 +222,13 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 
 	// Check if application exists
 	_, err = h.queries.GetApplicationByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Application not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch application",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 
 	// Delete application
 	err = h.queries.DeleteApplication(ctx, int32(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to delete application",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 

@@ -56,10 +56,7 @@ func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
 	ctx := c.Request.Context()
 	companies, err := h.queries.GetAllCompanies(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch companies",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to fetch companies", err)
 		return
 	}
 
@@ -73,27 +70,14 @@ func (h *CompanyHandler) GetCompanyByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid company ID", "ID must be a number")
 		return
 	}
 
 	// Query database
 	ctx := c.Request.Context()
 	company, err := h.queries.GetCompanyByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Company not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch company",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
@@ -112,18 +96,13 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	// Parse JSON body
 	var req CreateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"details": err.Error(),
-		})
+		sendBadRequest(c, "Invalid request body", err.Error())
 		return
 	}
 
 	// Validate name is not empty (binding:"required" should handle this, but double-check)
 	if strings.TrimSpace(req.Name) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Company name is required",
-		})
+		sendBadRequest(c, "Company name is required")
 		return
 	}
 
@@ -142,10 +121,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	}
 	// If error is not "no rows", it's a real database error
 	if err != nil && err != sql.ErrNoRows {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to check for existing company",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to check for existing company", err)
 		return
 	}
 
@@ -156,7 +132,8 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	})
 	if err != nil {
 		// Check for race condition (another request created it between our check and create)
-		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+		errStr := strings.ToLower(err.Error())
+		if strings.Contains(errStr, "duplicate") || strings.Contains(errStr, "unique") {
 			// Fetch the company that was just created by another request
 			existingCompany, fetchErr := h.queries.GetCompanyByName(ctx, normalizedName)
 			if fetchErr == nil {
@@ -164,11 +141,9 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 				return
 			}
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create company",
-			"details": err.Error(),
-		})
-		return
+		if handleDatabaseError(c, err, "Company") {
+			return
+		}
 	}
 
 	// Return newly created company
@@ -188,28 +163,20 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid company ID", "ID must be a number")
 		return
 	}
 
 	// Parse JSON body
 	var req UpdateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"details": err.Error(),
-		})
+		sendBadRequest(c, "Invalid request body", err.Error())
 		return
 	}
 
 	// Validate name is not empty
 	if strings.TrimSpace(req.Name) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Company name is required",
-		})
+		sendBadRequest(c, "Company name is required")
 		return
 	}
 
@@ -218,17 +185,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 
 	// Check if company exists
 	_, err = h.queries.GetCompanyByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Company not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch company",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
@@ -239,18 +196,12 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	existingCompany, err := h.queries.GetCompanyByName(ctx, normalizedName)
 	if err == nil && existingCompany.ID != int32(id) {
 		// Another company with this name exists
-		c.JSON(http.StatusConflict, gin.H{
-			"error": "Company name already exists",
-			"company": existingCompany,
-		})
+		sendError(c, http.StatusConflict, "Company name already exists")
 		return
 	}
 	// If error is not "no rows", it's a real error (but not the same company)
 	if err != nil && err != sql.ErrNoRows {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to check for existing company",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to check for existing company", err)
 		return
 	}
 
@@ -260,18 +211,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 		Name:    normalizedName,
 		Website: sql.NullString{String: req.Website, Valid: req.Website != ""},
 	})
-	if err != nil {
-		// Check if it's a unique constraint violation
-		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
-			c.JSON(http.StatusConflict, gin.H{
-				"error": "Company name already exists",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update company",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
@@ -285,10 +225,7 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid company ID", "ID must be a number")
 		return
 	}
 
@@ -297,27 +234,13 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 
 	// Check if company exists
 	_, err = h.queries.GetCompanyByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Company not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch company",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
 	// Delete company
 	err = h.queries.DeleteCompany(ctx, int32(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to delete company",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 

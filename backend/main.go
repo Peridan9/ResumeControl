@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
@@ -50,6 +52,23 @@ func main() {
 
 	// Initialize Gin router with default middleware (logger and recovery)
 	r := gin.Default()
+
+	// Configure CORS middleware
+	// Allow frontend origin (default: http://localhost:3000)
+	// Can be overridden with FRONTEND_URL environment variable
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{frontendURL},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "accept", "origin", "Cache-Control", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// Health check endpoint (now includes DB status)
 	r.GET("/api/health", func(c *gin.Context) {

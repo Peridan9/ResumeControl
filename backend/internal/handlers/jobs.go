@@ -26,10 +26,7 @@ func (h *JobHandler) GetAllJobs(c *gin.Context) {
 	ctx := c.Request.Context()
 	jobs, err := h.queries.GetAllJobs(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch jobs",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to fetch jobs", err)
 		return
 	}
 	c.JSON(http.StatusOK, jobs)
@@ -42,27 +39,14 @@ func (h *JobHandler) GetJobByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid job ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid job ID", "ID must be a number")
 		return
 	}
 
 	// Query database
 	ctx := c.Request.Context()
 	job, err := h.queries.GetJobByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Job not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
@@ -76,10 +60,7 @@ func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid company ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid company ID", "ID must be a number")
 		return
 	}
 
@@ -87,10 +68,7 @@ func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
 	ctx := c.Request.Context()
 	jobs, err := h.queries.GetJobsByCompanyID(ctx, int32(companyID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch jobs",
-			"details": err.Error(),
-		})
+		sendInternalError(c, "Failed to fetch jobs", err)
 		return
 	}
 
@@ -112,18 +90,13 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	// Parse JSON body
 	var req CreateJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"details": err.Error(),
-		})
+		sendBadRequest(c, "Invalid request body", err.Error())
 		return
 	}
 
 	// Validate title is not empty
 	if strings.TrimSpace(req.Title) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Job title is required",
-		})
+		sendBadRequest(c, "Job title is required")
 		return
 	}
 
@@ -132,17 +105,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 
 	// Validate company exists
 	_, err := h.queries.GetCompanyByID(ctx, req.CompanyID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Company not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to validate company",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
@@ -154,11 +117,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		Requirements: sql.NullString{String: req.Requirements, Valid: req.Requirements != ""},
 		Location:     sql.NullString{String: req.Location, Valid: req.Location != ""},
 	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
@@ -180,28 +139,20 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid job ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid job ID", "ID must be a number")
 		return
 	}
 
 	// Parse JSON body
 	var req UpdateJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"details": err.Error(),
-		})
+		sendBadRequest(c, "Invalid request body", err.Error())
 		return
 	}
 
 	// Validate title is not empty
 	if strings.TrimSpace(req.Title) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Job title is required",
-		})
+		sendBadRequest(c, "Job title is required")
 		return
 	}
 
@@ -210,17 +161,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 
 	// Check if job exists
 	_, err = h.queries.GetJobByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Job not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
@@ -232,11 +173,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		Requirements: sql.NullString{String: req.Requirements, Valid: req.Requirements != ""},
 		Location:     sql.NullString{String: req.Location, Valid: req.Location != ""},
 	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
@@ -250,10 +187,7 @@ func (h *JobHandler) DeleteJob(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid job ID",
-			"details": "ID must be a number",
-		})
+		sendBadRequest(c, "Invalid job ID", "ID must be a number")
 		return
 	}
 
@@ -262,27 +196,13 @@ func (h *JobHandler) DeleteJob(c *gin.Context) {
 
 	// Check if job exists
 	_, err = h.queries.GetJobByID(ctx, int32(id))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Job not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
 	// Delete job
 	err = h.queries.DeleteJob(ctx, int32(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to delete job",
-			"details": err.Error(),
-		})
+	if handleDatabaseError(c, err, "Job") {
 		return
 	}
 
