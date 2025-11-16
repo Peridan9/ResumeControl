@@ -41,7 +41,7 @@ export interface CreateCompanyRequest {
 }
 
 export interface UpdateCompanyRequest {
-  name?: string
+  name: string
   website?: string
 }
 
@@ -55,7 +55,7 @@ export interface CreateJobRequest {
 
 export interface UpdateJobRequest {
   company_id?: number
-  title?: string
+  title: string
   description?: string
   requirements?: string
   location?: string
@@ -70,8 +70,8 @@ export interface CreateApplicationRequest {
 
 export interface UpdateApplicationRequest {
   job_id?: number
-  status?: string
-  applied_date?: string
+  status: string
+  applied_date: string
   notes?: string
 }
 
