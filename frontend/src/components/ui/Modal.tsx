@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 
 interface ModalProps {
   isOpen: boolean
@@ -8,6 +8,9 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const mouseDownRef = useRef<HTMLElement | null>(null)
+
   // Close modal on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -28,16 +31,38 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     }
   }, [isOpen, onClose])
 
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    // Track where the mouse down occurred
+    mouseDownRef.current = e.target as HTMLElement
+  }
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Only close if:
+    // 1. The click target is the backdrop itself (not a child)
+    // 2. The mouse down also started on the backdrop (not a drag from inside)
+    if (
+      e.target === backdropRef.current &&
+      mouseDownRef.current === backdropRef.current
+    ) {
+      onClose()
+    }
+    // Reset the mouse down ref
+    mouseDownRef.current = null
+  }
+
   if (!isOpen) return null
 
   return (
     <div
+      ref={backdropRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onClick={handleBackdropClick}
     >
       <div
         className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
