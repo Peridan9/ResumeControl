@@ -3,6 +3,16 @@
 SELECT * FROM jobs
 ORDER BY created_at DESC;
 
+-- name: GetAllJobsPaginated :many
+-- Get paginated jobs, ordered by created_at (newest first)
+SELECT * FROM jobs
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CountJobs :one
+-- Get total count of jobs
+SELECT COUNT(*) FROM jobs;
+
 -- name: GetJobByID :one
 -- Get a single job by ID
 SELECT * FROM jobs

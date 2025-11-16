@@ -22,13 +22,18 @@ func NewApplicationHandler(queries *database.Queries) *ApplicationHandler {
 
 // GetAllApplications handles GET /api/applications
 // Returns all applications, or filters by status if ?status= query parameter is provided
+// Supports pagination with ?page=1&limit=10 (optional, backward compatible)
+// Note: Status filter and pagination can be combined
 func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Check if status filter is provided
 	status := c.Query("status")
-	if status != "" {
-		// Use status filter
+	pageStr := c.Query("page")
+	limitStr := c.Query("limit")
+
+	// If status is provided but no pagination, return all filtered (backward compatible)
+	if status != "" && pageStr == "" && limitStr == "" {
 		applications, err := h.queries.GetApplicationsByStatus(ctx, status)
 		if err != nil {
 			sendInternalError(c, "Failed to fetch applications", err)
@@ -38,13 +43,99 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 		return
 	}
 
-	// Return all applications
-	applications, err := h.queries.GetAllApplications(ctx)
+	// If no pagination params and no status, return all (backward compatible)
+	if pageStr == "" && limitStr == "" && status == "" {
+		applications, err := h.queries.GetAllApplications(ctx)
+		if err != nil {
+			sendInternalError(c, "Failed to fetch applications", err)
+			return
+		}
+		c.JSON(http.StatusOK, applications)
+		return
+	}
+
+	// Parse pagination parameters
+	params := ParsePaginationParams(c)
+	offset := CalculateOffset(params.Page, params.Limit)
+
+	// For now, if status is provided with pagination, we'll return paginated all
+	// TODO: Add paginated status filter query if needed
+	if status != "" {
+		// Get all filtered applications (we'll paginate in memory for now)
+		// This is not ideal for large datasets, but maintains backward compatibility
+		allApplications, err := h.queries.GetApplicationsByStatus(ctx, status)
+		if err != nil {
+			sendInternalError(c, "Failed to fetch applications", err)
+			return
+		}
+
+		// Manual pagination in memory
+		totalCount := int64(len(allApplications))
+		start := int(offset)
+		end := start + int(params.Limit)
+		if start > len(allApplications) {
+			start = len(allApplications)
+		}
+		if end > len(allApplications) {
+			end = len(allApplications)
+		}
+
+		var applications []database.Application
+		if start < len(allApplications) {
+			applications = allApplications[start:end]
+		}
+
+		// Convert to interface{} for paginated response
+		data := make([]interface{}, len(applications))
+		for i, app := range applications {
+			data[i] = app
+		}
+
+		c.JSON(http.StatusOK, PaginatedResponse{
+			Data: data,
+			Meta: PaginationMeta{
+				Page:       params.Page,
+				Limit:      params.Limit,
+				TotalCount: totalCount,
+				TotalPages: CalculateTotalPages(totalCount, params.Limit),
+			},
+		})
+		return
+	}
+
+	// Fetch paginated applications (no status filter)
+	applications, err := h.queries.GetAllApplicationsPaginated(ctx, database.GetAllApplicationsPaginatedParams{
+		Limit:  params.Limit,
+		Offset: offset,
+	})
 	if err != nil {
 		sendInternalError(c, "Failed to fetch applications", err)
 		return
 	}
-	c.JSON(http.StatusOK, applications)
+
+	// Fetch total count
+	totalCount, err := h.queries.CountApplications(ctx)
+	if err != nil {
+		sendInternalError(c, "Failed to count applications", err)
+		return
+	}
+
+	// Convert to interface{} for paginated response
+	data := make([]interface{}, len(applications))
+	for i, app := range applications {
+		data[i] = app
+	}
+
+	// Return paginated response
+	c.JSON(http.StatusOK, PaginatedResponse{
+		Data: data,
+		Meta: PaginationMeta{
+			Page:       params.Page,
+			Limit:      params.Limit,
+			TotalCount: totalCount,
+			TotalPages: CalculateTotalPages(totalCount, params.Limit),
+		},
+	})
 }
 
 // GetApplicationByID handles GET /api/applications/:id

@@ -3,6 +3,16 @@
 SELECT * FROM companies
 ORDER BY name ASC;
 
+-- name: GetAllCompaniesPaginated :many
+-- Get paginated companies, ordered by name
+SELECT * FROM companies
+ORDER BY name ASC
+LIMIT $1 OFFSET $2;
+
+-- name: CountCompanies :one
+-- Get total count of companies
+SELECT COUNT(*) FROM companies;
+
 -- name: GetCompanyByID :one
 -- Get a single company by ID
 SELECT * FROM companies

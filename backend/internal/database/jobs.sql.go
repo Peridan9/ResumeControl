@@ -10,6 +10,18 @@ import (
 	"database/sql"
 )
 
+const countJobs = `-- name: CountJobs :one
+SELECT COUNT(*) FROM jobs
+`
+
+// Get total count of jobs
+func (q *Queries) CountJobs(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countJobs)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createJob = `-- name: CreateJob :one
 INSERT INTO jobs (company_id, title, description, requirements, location)
 VALUES ($1, $2, $3, $4, $5)
@@ -66,6 +78,50 @@ ORDER BY created_at DESC
 // Get all jobs, ordered by created_at (newest first)
 func (q *Queries) GetAllJobs(ctx context.Context) ([]Job, error) {
 	rows, err := q.db.QueryContext(ctx, getAllJobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Title,
+			&i.Description,
+			&i.Requirements,
+			&i.Location,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllJobsPaginated = `-- name: GetAllJobsPaginated :many
+SELECT id, company_id, title, description, requirements, location, created_at, updated_at FROM jobs
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetAllJobsPaginatedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// Get paginated jobs, ordered by created_at (newest first)
+func (q *Queries) GetAllJobsPaginated(ctx context.Context, arg GetAllJobsPaginatedParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getAllJobsPaginated, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

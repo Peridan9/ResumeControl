@@ -11,6 +11,31 @@ import (
 	"time"
 )
 
+const countApplications = `-- name: CountApplications :one
+SELECT COUNT(*) FROM applications
+`
+
+// Get total count of applications
+func (q *Queries) CountApplications(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countApplications)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countApplicationsByStatus = `-- name: CountApplicationsByStatus :one
+SELECT COUNT(*) FROM applications
+WHERE status = $1
+`
+
+// Get total count of applications with a specific status
+func (q *Queries) CountApplicationsByStatus(ctx context.Context, status string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countApplicationsByStatus, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO applications (job_id, status, applied_date, notes)
 VALUES ($1, $2, $3, $4)
@@ -64,6 +89,49 @@ ORDER BY applied_date DESC
 // Get all applications, ordered by applied_date (newest first)
 func (q *Queries) GetAllApplications(ctx context.Context) ([]Application, error) {
 	rows, err := q.db.QueryContext(ctx, getAllApplications)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Application
+	for rows.Next() {
+		var i Application
+		if err := rows.Scan(
+			&i.ID,
+			&i.JobID,
+			&i.Status,
+			&i.AppliedDate,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllApplicationsPaginated = `-- name: GetAllApplicationsPaginated :many
+SELECT id, job_id, status, applied_date, notes, created_at, updated_at FROM applications
+ORDER BY applied_date DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetAllApplicationsPaginatedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// Get paginated applications, ordered by applied_date (newest first)
+func (q *Queries) GetAllApplicationsPaginated(ctx context.Context, arg GetAllApplicationsPaginatedParams) ([]Application, error) {
+	rows, err := q.db.QueryContext(ctx, getAllApplicationsPaginated, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

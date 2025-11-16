@@ -3,6 +3,21 @@
 SELECT * FROM applications
 ORDER BY applied_date DESC;
 
+-- name: GetAllApplicationsPaginated :many
+-- Get paginated applications, ordered by applied_date (newest first)
+SELECT * FROM applications
+ORDER BY applied_date DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CountApplications :one
+-- Get total count of applications
+SELECT COUNT(*) FROM applications;
+
+-- name: CountApplicationsByStatus :one
+-- Get total count of applications with a specific status
+SELECT COUNT(*) FROM applications
+WHERE status = $1;
+
 -- name: GetApplicationByID :one
 -- Get a single application by ID
 SELECT * FROM applications

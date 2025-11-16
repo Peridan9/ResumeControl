@@ -51,16 +51,63 @@ func normalizeCompanyName(name string) string {
 }
 
 // GetAllCompanies handles GET /api/companies
-// Returns all companies
+// Returns all companies or paginated companies if page/limit query params are provided
+// Query params: ?page=1&limit=10 (optional, backward compatible)
 func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
 	ctx := c.Request.Context()
-	companies, err := h.queries.GetAllCompanies(ctx)
+
+	// Check if pagination parameters are provided
+	pageStr := c.Query("page")
+	limitStr := c.Query("limit")
+
+	// If no pagination params, return all (backward compatible)
+	if pageStr == "" && limitStr == "" {
+		companies, err := h.queries.GetAllCompanies(ctx)
+		if err != nil {
+			sendInternalError(c, "Failed to fetch companies", err)
+			return
+		}
+		c.JSON(http.StatusOK, companies)
+		return
+	}
+
+	// Parse pagination parameters
+	params := ParsePaginationParams(c)
+	offset := CalculateOffset(params.Page, params.Limit)
+
+	// Fetch paginated companies
+	companies, err := h.queries.GetAllCompaniesPaginated(ctx, database.GetAllCompaniesPaginatedParams{
+		Limit:  params.Limit,
+		Offset: offset,
+	})
 	if err != nil {
 		sendInternalError(c, "Failed to fetch companies", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, companies)
+	// Fetch total count
+	totalCount, err := h.queries.CountCompanies(ctx)
+	if err != nil {
+		sendInternalError(c, "Failed to count companies", err)
+		return
+	}
+
+	// Convert to interface{} for paginated response
+	data := make([]interface{}, len(companies))
+	for i, company := range companies {
+		data[i] = company
+	}
+
+	// Return paginated response
+	c.JSON(http.StatusOK, PaginatedResponse{
+		Data: data,
+		Meta: PaginationMeta{
+			Page:       params.Page,
+			Limit:      params.Limit,
+			TotalCount: totalCount,
+			TotalPages: CalculateTotalPages(totalCount, params.Limit),
+		},
+	})
 }
 
 // GetCompanyByID handles GET /api/companies/:id

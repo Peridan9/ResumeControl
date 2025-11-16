@@ -10,6 +10,18 @@ import (
 	"database/sql"
 )
 
+const countCompanies = `-- name: CountCompanies :one
+SELECT COUNT(*) FROM companies
+`
+
+// Get total count of companies
+func (q *Queries) CountCompanies(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCompanies)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createCompany = `-- name: CreateCompany :one
 INSERT INTO companies (name, website)
 VALUES ($1, $2)
@@ -54,6 +66,47 @@ ORDER BY name ASC
 // Get all companies, ordered by name
 func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
 	rows, err := q.db.QueryContext(ctx, getAllCompanies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Company
+	for rows.Next() {
+		var i Company
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Website,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllCompaniesPaginated = `-- name: GetAllCompaniesPaginated :many
+SELECT id, name, website, created_at, updated_at FROM companies
+ORDER BY name ASC
+LIMIT $1 OFFSET $2
+`
+
+type GetAllCompaniesPaginatedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// Get paginated companies, ordered by name
+func (q *Queries) GetAllCompaniesPaginated(ctx context.Context, arg GetAllCompaniesPaginatedParams) ([]Company, error) {
+	rows, err := q.db.QueryContext(ctx, getAllCompaniesPaginated, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

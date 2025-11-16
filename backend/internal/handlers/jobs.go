@@ -21,15 +21,63 @@ func NewJobHandler(queries *database.Queries) *JobHandler {
 }
 
 // GetAllJobs handles GET /api/jobs
-// Returns all jobs
+// Returns all jobs or paginated jobs if page/limit query params are provided
+// Query params: ?page=1&limit=10 (optional, backward compatible)
 func (h *JobHandler) GetAllJobs(c *gin.Context) {
 	ctx := c.Request.Context()
-	jobs, err := h.queries.GetAllJobs(ctx)
+
+	// Check if pagination parameters are provided
+	pageStr := c.Query("page")
+	limitStr := c.Query("limit")
+
+	// If no pagination params, return all (backward compatible)
+	if pageStr == "" && limitStr == "" {
+		jobs, err := h.queries.GetAllJobs(ctx)
+		if err != nil {
+			sendInternalError(c, "Failed to fetch jobs", err)
+			return
+		}
+		c.JSON(http.StatusOK, jobs)
+		return
+	}
+
+	// Parse pagination parameters
+	params := ParsePaginationParams(c)
+	offset := CalculateOffset(params.Page, params.Limit)
+
+	// Fetch paginated jobs
+	jobs, err := h.queries.GetAllJobsPaginated(ctx, database.GetAllJobsPaginatedParams{
+		Limit:  params.Limit,
+		Offset: offset,
+	})
 	if err != nil {
 		sendInternalError(c, "Failed to fetch jobs", err)
 		return
 	}
-	c.JSON(http.StatusOK, jobs)
+
+	// Fetch total count
+	totalCount, err := h.queries.CountJobs(ctx)
+	if err != nil {
+		sendInternalError(c, "Failed to count jobs", err)
+		return
+	}
+
+	// Convert to interface{} for paginated response
+	data := make([]interface{}, len(jobs))
+	for i, job := range jobs {
+		data[i] = job
+	}
+
+	// Return paginated response
+	c.JSON(http.StatusOK, PaginatedResponse{
+		Data: data,
+		Meta: PaginationMeta{
+			Page:       params.Page,
+			Limit:      params.Limit,
+			TotalCount: totalCount,
+			TotalPages: CalculateTotalPages(totalCount, params.Limit),
+		},
+	})
 }
 
 // GetJobByID handles GET /api/jobs/:id
