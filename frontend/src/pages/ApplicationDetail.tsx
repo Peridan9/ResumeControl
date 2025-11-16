@@ -4,6 +4,8 @@ import { applicationsAPI, jobsAPI, companiesAPI } from '../services/api'
 import type { Application, Job, Company } from '../types'
 import { nullStringToString, nullTimeToString } from '../utils/helpers'
 import Button from '../components/ui/Button'
+import Modal from '../components/ui/Modal'
+import ApplicationForm from '../components/applications/ApplicationForm'
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +15,9 @@ export default function ApplicationDetail() {
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) {
@@ -89,6 +94,72 @@ export default function ApplicationDetail() {
     return statusColors[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
   }
 
+  const handleEdit = () => {
+    setIsEditModalOpen(true)
+    setSuccessMessage(null)
+    setError(null)
+  }
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false)
+  }
+
+  const handleUpdate = async (formData: {
+    companyName: string
+    jobTitle: string
+    jobDescription?: string
+    jobRequirements?: string
+    jobLocation?: string
+    status: string
+    appliedDate: string
+    notes?: string
+  }) => {
+    if (!application || !job || !company) return
+
+    try {
+      setIsSubmitting(true)
+      setError(null)
+      setSuccessMessage(null)
+
+      // Step 1: Update company if name changed
+      if (formData.companyName !== company.name) {
+        await companiesAPI.update(company.id, {
+          name: formData.companyName,
+        })
+      }
+
+      // Step 2: Update job
+      await jobsAPI.update(job.id, {
+        title: formData.jobTitle,
+        description: formData.jobDescription,
+        requirements: formData.jobRequirements,
+        location: formData.jobLocation,
+      })
+
+      // Step 3: Update application
+      await applicationsAPI.update(application.id, {
+        status: formData.status,
+        applied_date: formData.appliedDate,
+        notes: formData.notes,
+      })
+
+      setSuccessMessage('Application updated successfully!')
+
+      // Refresh the data
+      await fetchApplicationData(application.id)
+
+      // Close modal after a short delay to show success message
+      setTimeout(() => {
+        handleCloseEditModal()
+        setSuccessMessage(null)
+      }, 500)
+    } catch (err) {
+      throw err
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -127,9 +198,26 @@ export default function ApplicationDetail() {
       </Button>
 
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Application Details</h1>
+        <Button variant="primary" onClick={handleEdit}>
+          Edit Application
+        </Button>
       </div>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          {successMessage}
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Company Information Card */}
@@ -230,6 +318,22 @@ export default function ApplicationDetail() {
           </div>
         </div>
       </div>
+
+      {/* Edit Application Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        title="Edit Application"
+      >
+        <ApplicationForm
+          application={application}
+          job={job}
+          company={company}
+          onSubmit={handleUpdate}
+          onCancel={handleCloseEditModal}
+          isLoading={isSubmitting}
+        />
+      </Modal>
     </div>
   )
 }

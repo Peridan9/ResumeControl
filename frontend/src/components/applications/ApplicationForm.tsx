@@ -1,9 +1,12 @@
 import { useState, FormEvent, useEffect, useRef } from 'react'
-import type { Application } from '../../types'
+import type { Application, Job, Company } from '../../types'
+import { nullStringToString } from '../../utils/helpers'
 import Button from '../ui/Button'
 
 interface ApplicationFormProps {
   application?: Application | null
+  job?: Job | null
+  company?: Company | null
   onSubmit: (data: {
     companyName: string
     jobTitle: string
@@ -42,18 +45,26 @@ interface FormDraft {
 
 export default function ApplicationForm({
   application,
+  job,
+  company,
   onSubmit,
   onCancel,
   isLoading = false,
 }: ApplicationFormProps) {
+  const isEditMode = !!application
+
   // Helper to get default date
   const getDefaultDate = () => {
+    if (application?.applied_date) {
+      return application.applied_date.split('T')[0]
+    }
     const today = new Date()
     return today.toISOString().split('T')[0]
   }
 
-  // Load draft from sessionStorage on mount
+  // Load draft from sessionStorage on mount (only for create mode)
   const loadDraft = (): Partial<FormDraft> | null => {
+    if (isEditMode) return null // Don't load draft in edit mode
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY)
       if (saved) {
@@ -65,8 +76,9 @@ export default function ApplicationForm({
     return null
   }
 
-  // Save draft to sessionStorage
+  // Save draft to sessionStorage (only for create mode)
   const saveDraft = (data: FormDraft) => {
+    if (isEditMode) return // Don't save draft in edit mode
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch (error) {
@@ -83,16 +95,32 @@ export default function ApplicationForm({
     }
   }
 
-  // Restore draft on mount
+  // Initialize form values: use application data if editing, otherwise use draft or defaults
   const draft = loadDraft()
-  const [companyName, setCompanyName] = useState(draft?.companyName || '')
-  const [jobTitle, setJobTitle] = useState(draft?.jobTitle || '')
-  const [jobDescription, setJobDescription] = useState(draft?.jobDescription || '')
-  const [jobRequirements, setJobRequirements] = useState(draft?.jobRequirements || '')
-  const [jobLocation, setJobLocation] = useState(draft?.jobLocation || '')
-  const [status, setStatus] = useState(draft?.status || 'applied')
-  const [appliedDate, setAppliedDate] = useState(draft?.appliedDate || getDefaultDate())
-  const [notes, setNotes] = useState(draft?.notes || '')
+  const [companyName, setCompanyName] = useState(
+    isEditMode && company ? company.name : draft?.companyName || ''
+  )
+  const [jobTitle, setJobTitle] = useState(
+    isEditMode && job ? job.title : draft?.jobTitle || ''
+  )
+  const [jobDescription, setJobDescription] = useState(
+    isEditMode && job ? nullStringToString(job.description) || '' : draft?.jobDescription || ''
+  )
+  const [jobRequirements, setJobRequirements] = useState(
+    isEditMode && job ? nullStringToString(job.requirements) || '' : draft?.jobRequirements || ''
+  )
+  const [jobLocation, setJobLocation] = useState(
+    isEditMode && job ? nullStringToString(job.location) || '' : draft?.jobLocation || ''
+  )
+  const [status, setStatus] = useState(
+    isEditMode && application ? application.status : draft?.status || 'applied'
+  )
+  const [appliedDate, setAppliedDate] = useState(
+    isEditMode ? getDefaultDate() : draft?.appliedDate || getDefaultDate()
+  )
+  const [notes, setNotes] = useState(
+    isEditMode && application ? nullStringToString(application.notes) || '' : draft?.notes || ''
+  )
   const [error, setError] = useState<string | null>(null)
 
   // Debounce timer ref
