@@ -1,10 +1,16 @@
 import { Link, useLocation } from 'react-router-dom'
+import {
+  Squares2X2Icon,
+  BuildingOfficeIcon,
+  BriefcaseIcon,
+  DocumentTextIcon,
+} from '@heroicons/react/24/outline'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: '📊' },
-  { name: 'Companies', href: '/companies', icon: '🏢' },
-  { name: 'Jobs', href: '/jobs', icon: '💼' },
-  { name: 'Applications', href: '/applications', icon: '📝' },
+  { name: 'Dashboard', href: '/', icon: Squares2X2Icon },
+  { name: 'Companies', href: '/companies', icon: BuildingOfficeIcon },
+  { name: 'Jobs', href: '/jobs', icon: BriefcaseIcon },
+  { name: 'Applications', href: '/applications', icon: DocumentTextIcon },
 ]
 
 export default function Sidebar() {
@@ -16,6 +22,7 @@ export default function Sidebar() {
         <ul className="space-y-2">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href
+            const Icon = item.icon
             return (
               <li key={item.name}>
                 <Link
@@ -26,7 +33,7 @@ export default function Sidebar() {
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="text-xl">{item.icon}</span>
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-blue-700' : 'text-gray-500'}`} />
                   <span>{item.name}</span>
                 </Link>
               </li>
@@ -37,4 +44,3 @@ export default function Sidebar() {
     </aside>
   )
 }
-
