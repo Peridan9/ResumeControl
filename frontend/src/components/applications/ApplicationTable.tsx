@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { DocumentTextIcon } from '@heroicons/react/24/outline'
 import type { Application, Job, Company } from '../../types'
 import { nullTimeToString, nullStringToString } from '../../utils/helpers'
 import Tooltip from '../ui/Tooltip'
@@ -126,7 +127,7 @@ export default function ApplicationTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {hasNotes ? (
                       <Tooltip content={notesText} position="left" maxWidth="max">
-                        <span className="text-lg">📝</span>
+                        <DocumentTextIcon className="w-5 h-5 text-gray-500 hover:text-gray-700 cursor-pointer" />
                       </Tooltip>
                     ) : (
                       <span className="text-gray-300">—</span>
