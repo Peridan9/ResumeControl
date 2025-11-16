@@ -6,12 +6,24 @@ import ApplicationForm from '../components/applications/ApplicationForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'offer', label: 'Offer' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'accepted', label: 'Accepted' },
+]
+
 export default function Applications() {
   const [applications, setApplications] = useState<Application[]>([])
+  const [filteredApplications, setFilteredApplications] = useState<Application[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -43,12 +55,28 @@ export default function Applications() {
       setApplications(applicationsData)
       setJobs(jobsData)
       setCompanies(companiesData)
+      applyFilter(applicationsData, statusFilter)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch applications')
     } finally {
       setLoading(false)
     }
   }
+
+  const applyFilter = (apps: Application[], filter: string) => {
+    if (!filter || filter === '') {
+      setFilteredApplications(apps)
+    } else {
+      setFilteredApplications(apps.filter((app) => app.status.toLowerCase() === filter.toLowerCase()))
+    }
+  }
+
+  useEffect(() => {
+    if (applications.length > 0 || statusFilter) {
+      applyFilter(applications, statusFilter)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, applications])
 
   const handleCreate = () => {
     setIsModalOpen(true)
@@ -121,6 +149,25 @@ export default function Applications() {
         </Button>
       </div>
 
+      {/* Status Filter */}
+      <div className="mb-4">
+        <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-2">
+          Filter by Status
+        </label>
+        <select
+          id="statusFilter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Success Message */}
       {successMessage && (
         <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
@@ -143,10 +190,14 @@ export default function Applications() {
         </div>
       ) : (
         <ApplicationTable
-          applications={applications}
+          applications={filteredApplications}
           jobs={jobs}
           companies={companies}
-          emptyMessage="No applications found. Create your first application to get started."
+          emptyMessage={
+            statusFilter
+              ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
+              : 'No applications found. Create your first application to get started.'
+          }
         />
       )}
 

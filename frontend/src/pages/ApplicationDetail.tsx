@@ -5,6 +5,7 @@ import type { Application, Job, Company } from '../types'
 import { nullStringToString, nullTimeToString } from '../utils/helpers'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ApplicationForm from '../components/applications/ApplicationForm'
 
 export default function ApplicationDetail() {
@@ -16,7 +17,9 @@ export default function ApplicationDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -160,6 +163,29 @@ export default function ApplicationDetail() {
     }
   }
 
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!application) return
+
+    try {
+      setIsDeleting(true)
+      setError(null)
+
+      await applicationsAPI.delete(application.id)
+
+      // Navigate back to applications list
+      navigate('/applications')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete application')
+      setIsDeleteDialogOpen(false)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -200,9 +226,14 @@ export default function ApplicationDetail() {
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Application Details</h1>
-        <Button variant="primary" onClick={handleEdit}>
-          Edit Application
-        </Button>
+        <div className="flex space-x-3">
+          <Button variant="primary" onClick={handleEdit}>
+            Edit Application
+          </Button>
+          <Button variant="danger" onClick={handleDeleteClick}>
+            Delete Application
+          </Button>
+        </div>
       </div>
 
       {/* Success Message */}
@@ -334,6 +365,19 @@ export default function ApplicationDetail() {
           isLoading={isSubmitting}
         />
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Application"
+        message={`Are you sure you want to delete this application? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   )
 }
