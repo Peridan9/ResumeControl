@@ -554,3 +554,237 @@ func TestDeleteApplication(t *testing.T) {
 	}
 }
 
+// TestGetAllApplications_WithPagination tests GET /api/applications with pagination
+func TestGetAllApplications_WithPagination(t *testing.T) {
+	router, queries, db := setupTestRouter(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create test company and job
+	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
+		Name: "Test Company for Application Pagination",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test company: %v", err)
+	}
+	defer queries.DeleteCompany(ctx, company.ID)
+
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		CompanyID: company.ID,
+		Title:     "Test Job for Application Pagination",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
+
+	// Create multiple test applications
+	var createdApplications []database.Application
+	for i := 0; i < 15; i++ {
+		application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
+			JobID:       job.ID,
+			Status:      "applied",
+			AppliedDate: time.Now(),
+			Notes:       sql.NullString{String: "Test notes " + strconv.Itoa(i+1), Valid: true},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test application: %v", err)
+		}
+		createdApplications = append(createdApplications, application)
+		defer queries.DeleteApplication(ctx, application.ID)
+	}
+
+	// Test pagination: page 1, limit 10
+	req := httptest.NewRequest("GET", "/api/applications?page=1&limit=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Verify pagination metadata
+	if response.Meta.Page != 1 {
+		t.Errorf("Expected page 1, got %d", response.Meta.Page)
+	}
+	if response.Meta.Limit != 10 {
+		t.Errorf("Expected limit 10, got %d", response.Meta.Limit)
+	}
+	if response.Meta.TotalCount < 15 {
+		t.Errorf("Expected total_count >= 15, got %d", response.Meta.TotalCount)
+	}
+	if len(response.Data) != 10 {
+		t.Errorf("Expected 10 items in data, got %d", len(response.Data))
+	}
+
+	// Test pagination: page 2, limit 10
+	req = httptest.NewRequest("GET", "/api/applications?page=2&limit=10", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response2 PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response2); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if response2.Meta.Page != 2 {
+		t.Errorf("Expected page 2, got %d", response2.Meta.Page)
+	}
+	if len(response2.Data) > 10 {
+		t.Errorf("Expected <= 10 items in page 2, got %d", len(response2.Data))
+	}
+}
+
+// TestGetAllApplications_WithPaginationAndStatus tests pagination with status filter
+func TestGetAllApplications_WithPaginationAndStatus(t *testing.T) {
+	router, queries, db := setupTestRouter(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create test company and job
+	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
+		Name: "Test Company for Status Pagination",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test company: %v", err)
+	}
+	defer queries.DeleteCompany(ctx, company.ID)
+
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		CompanyID: company.ID,
+		Title:     "Test Job for Status Pagination",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
+
+	// Create multiple test applications with different statuses
+	var createdApplications []database.Application
+	for i := 0; i < 10; i++ {
+		status := "applied"
+		if i%2 == 0 {
+			status = "interview"
+		}
+		application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
+			JobID:       job.ID,
+			Status:      status,
+			AppliedDate: time.Now(),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test application: %v", err)
+		}
+		createdApplications = append(createdApplications, application)
+		defer queries.DeleteApplication(ctx, application.ID)
+	}
+
+	// Test pagination with status filter: page 1, limit 5
+	req := httptest.NewRequest("GET", "/api/applications?status=applied&page=1&limit=5", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Verify pagination metadata
+	if response.Meta.Page != 1 {
+		t.Errorf("Expected page 1, got %d", response.Meta.Page)
+	}
+	if response.Meta.Limit != 5 {
+		t.Errorf("Expected limit 5, got %d", response.Meta.Limit)
+	}
+	if len(response.Data) > 5 {
+		t.Errorf("Expected <= 5 items in page 1, got %d", len(response.Data))
+	}
+}
+
+// TestGetAllApplications_PaginationEdgeCases tests edge cases for pagination
+func TestGetAllApplications_PaginationEdgeCases(t *testing.T) {
+	router, queries, db := setupTestRouter(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create test company and job
+	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
+		Name: "Test Company for Application Edge Cases",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test company: %v", err)
+	}
+	defer queries.DeleteCompany(ctx, company.ID)
+
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		CompanyID: company.ID,
+		Title:     "Test Job for Application Edge Cases",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
+
+	// Create a test application
+	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
+		JobID:       job.ID,
+		Status:      "applied",
+		AppliedDate: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test application: %v", err)
+	}
+	defer queries.DeleteApplication(ctx, application.ID)
+
+	// Test: Page beyond total pages (should return empty data)
+	req := httptest.NewRequest("GET", "/api/applications?page=999&limit=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(response.Data) != 0 {
+		t.Errorf("Expected empty data for page beyond total, got %d items", len(response.Data))
+	}
+
+	// Test: Maximum limit enforcement
+	req = httptest.NewRequest("GET", "/api/applications?page=1&limit=200", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var responseMax PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &responseMax); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if responseMax.Meta.Limit != 100 {
+		t.Errorf("Expected limit to be capped at 100, got %d", responseMax.Meta.Limit)
+	}
+}
+

@@ -406,3 +406,145 @@ func TestDeleteJob(t *testing.T) {
 	}
 }
 
+// TestGetAllJobs_WithPagination tests GET /api/jobs with pagination
+func TestGetAllJobs_WithPagination(t *testing.T) {
+	router, queries, db := setupTestRouter(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create a test company
+	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
+		Name: "Test Company for Job Pagination",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test company: %v", err)
+	}
+	defer queries.DeleteCompany(ctx, company.ID)
+
+	// Create multiple test jobs
+	var createdJobs []database.Job
+	for i := 0; i < 15; i++ {
+		job, err := queries.CreateJob(ctx, database.CreateJobParams{
+			CompanyID: company.ID,
+			Title:     "Test Job " + strconv.Itoa(i+1),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test job: %v", err)
+		}
+		createdJobs = append(createdJobs, job)
+		defer queries.DeleteJob(ctx, job.ID)
+	}
+
+	// Test pagination: page 1, limit 10
+	req := httptest.NewRequest("GET", "/api/jobs?page=1&limit=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Verify pagination metadata
+	if response.Meta.Page != 1 {
+		t.Errorf("Expected page 1, got %d", response.Meta.Page)
+	}
+	if response.Meta.Limit != 10 {
+		t.Errorf("Expected limit 10, got %d", response.Meta.Limit)
+	}
+	if response.Meta.TotalCount < 15 {
+		t.Errorf("Expected total_count >= 15, got %d", response.Meta.TotalCount)
+	}
+	if len(response.Data) != 10 {
+		t.Errorf("Expected 10 items in data, got %d", len(response.Data))
+	}
+
+	// Test pagination: page 2, limit 10
+	req = httptest.NewRequest("GET", "/api/jobs?page=2&limit=10", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response2 PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response2); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if response2.Meta.Page != 2 {
+		t.Errorf("Expected page 2, got %d", response2.Meta.Page)
+	}
+	if len(response2.Data) > 10 {
+		t.Errorf("Expected <= 10 items in page 2, got %d", len(response2.Data))
+	}
+}
+
+// TestGetAllJobs_PaginationEdgeCases tests edge cases for pagination
+func TestGetAllJobs_PaginationEdgeCases(t *testing.T) {
+	router, queries, db := setupTestRouter(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create a test company and job
+	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
+		Name: "Test Company for Job Edge Cases",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test company: %v", err)
+	}
+	defer queries.DeleteCompany(ctx, company.ID)
+
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		CompanyID: company.ID,
+		Title:     "Test Job for Edge Cases",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
+
+	// Test: Page beyond total pages (should return empty data)
+	req := httptest.NewRequest("GET", "/api/jobs?page=999&limit=10", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if len(response.Data) != 0 {
+		t.Errorf("Expected empty data for page beyond total, got %d items", len(response.Data))
+	}
+
+	// Test: Maximum limit enforcement
+	req = httptest.NewRequest("GET", "/api/jobs?page=1&limit=200", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var responseMax PaginatedResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &responseMax); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if responseMax.Meta.Limit != 100 {
+		t.Errorf("Expected limit to be capped at 100, got %d", responseMax.Meta.Limit)
+	}
+}
+
