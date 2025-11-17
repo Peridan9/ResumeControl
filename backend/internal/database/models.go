@@ -11,7 +11,6 @@ import (
 
 type Application struct {
 	ID          int32          `json:"id"`
-	JobID       int32          `json:"job_id"`
 	Status      string         `json:"status"`
 	AppliedDate time.Time      `json:"applied_date"`
 	Notes       sql.NullString `json:"notes"`
@@ -28,12 +27,13 @@ type Company struct {
 }
 
 type Job struct {
-	ID           int32          `json:"id"`
-	CompanyID    int32          `json:"company_id"`
-	Title        string         `json:"title"`
-	Description  sql.NullString `json:"description"`
-	Requirements sql.NullString `json:"requirements"`
-	Location     sql.NullString `json:"location"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	ID            int32          `json:"id"`
+	CompanyID     int32          `json:"company_id"`
+	Title         string         `json:"title"`
+	Description   sql.NullString `json:"description"`
+	Requirements  sql.NullString `json:"requirements"`
+	Location      sql.NullString `json:"location"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
+	ApplicationID int32          `json:"application_id"`
 }

@@ -32,9 +32,6 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 
 		// Job routes
 		api.GET("/jobs", jobHandler.GetAllJobs)
-		// Nested route: Get applications by job (must be before /jobs/:id)
-		// Use :id instead of :jobId to avoid route conflict
-		api.GET("/jobs/:id/applications", applicationHandler.GetApplicationsByJobID)
 		api.GET("/jobs/:id", jobHandler.GetJobByID)
 		api.POST("/jobs", jobHandler.CreateJob)
 		api.PUT("/jobs/:id", jobHandler.UpdateJob)
@@ -44,6 +41,8 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 		api.GET("/applications", applicationHandler.GetAllApplications)
 		// Note: Get applications by status is handled via query parameter in GetAllApplications
 		// Example: GET /api/applications?status=applied
+		// Nested route: Get job by application (must be before /applications/:id)
+		api.GET("/applications/:id/job", applicationHandler.GetJobByApplicationID)
 		api.GET("/applications/:id", applicationHandler.GetApplicationByID)
 		api.POST("/applications", applicationHandler.CreateApplication)
 		api.PUT("/applications/:id", applicationHandler.UpdateApplication)

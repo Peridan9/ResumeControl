@@ -15,6 +15,7 @@ export interface Company {
 
 export interface Job {
   id: number
+  application_id: number
   company_id: number
   title: string
   description: NullString
@@ -26,7 +27,6 @@ export interface Job {
 
 export interface Application {
   id: number
-  job_id: number
   status: string
   applied_date: string
   notes: NullString
@@ -46,6 +46,7 @@ export interface UpdateCompanyRequest {
 }
 
 export interface CreateJobRequest {
+  application_id: number
   company_id: number
   title: string
   description?: string
@@ -62,14 +63,12 @@ export interface UpdateJobRequest {
 }
 
 export interface CreateApplicationRequest {
-  job_id: number
   status: string
   applied_date: string
   notes?: string
 }
 
 export interface UpdateApplicationRequest {
-  job_id?: number
   status: string
   applied_date: string
   notes?: string

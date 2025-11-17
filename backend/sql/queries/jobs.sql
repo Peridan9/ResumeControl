@@ -24,10 +24,17 @@ SELECT * FROM jobs
 WHERE company_id = $1
 ORDER BY created_at DESC;
 
+-- name: GetJobsByApplicationID :many
+-- Get all jobs for a specific application (should typically be just one)
+SELECT * FROM jobs
+WHERE application_id = $1
+ORDER BY created_at DESC;
+
 -- name: CreateJob :one
 -- Create a new job and return the created record
-INSERT INTO jobs (company_id, title, description, requirements, location)
-VALUES ($1, $2, $3, $4, $5)
+-- Jobs now belong to applications (application_id is required)
+INSERT INTO jobs (application_id, company_id, title, description, requirements, location)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: UpdateJob :one

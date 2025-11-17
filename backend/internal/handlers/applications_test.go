@@ -21,7 +21,7 @@ func TestGetAllApplications(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for Applications",
 	})
@@ -30,18 +30,8 @@ func TestGetAllApplications(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job for Applications",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create a test application
+	// Create a test application first (jobs now belong to applications)
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "applied",
 		AppliedDate: time.Now(),
 		Notes:       sql.NullString{String: "Test notes", Valid: true},
@@ -50,6 +40,17 @@ func TestGetAllApplications(t *testing.T) {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
 	defer queries.DeleteApplication(ctx, application.ID)
+
+	// Create job with application_id
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: application.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job for Applications",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
 
 	// Make request
 	req := httptest.NewRequest("GET", "/api/applications", nil)
@@ -90,7 +91,7 @@ func TestGetAllApplications_WithStatusFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for Status Filter",
 	})
@@ -99,18 +100,8 @@ func TestGetAllApplications_WithStatusFilter(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create applications with different statuses
+	// Create applications with different statuses first
 	appliedApp, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "applied",
 		AppliedDate: time.Now(),
 	})
@@ -120,7 +111,6 @@ func TestGetAllApplications_WithStatusFilter(t *testing.T) {
 	defer queries.DeleteApplication(ctx, appliedApp.ID)
 
 	rejectedApp, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "rejected",
 		AppliedDate: time.Now(),
 	})
@@ -128,6 +118,27 @@ func TestGetAllApplications_WithStatusFilter(t *testing.T) {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
 	defer queries.DeleteApplication(ctx, rejectedApp.ID)
+
+	// Create jobs for each application
+	job1, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: appliedApp.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job1.ID)
+
+	job2, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: rejectedApp.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job 2",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job2.ID)
 
 	// Test filtering by status
 	req := httptest.NewRequest("GET", "/api/applications?status=applied", nil)
@@ -158,7 +169,7 @@ func TestGetApplicationByID(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for GetApplicationByID",
 	})
@@ -167,18 +178,8 @@ func TestGetApplicationByID(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create a test application
+	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "applied",
 		AppliedDate: time.Now(),
 		Notes:       sql.NullString{String: "Test notes", Valid: true},
@@ -187,6 +188,17 @@ func TestGetApplicationByID(t *testing.T) {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
 	defer queries.DeleteApplication(ctx, application.ID)
+
+	// Create job with application_id
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: application.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
 
 	// Test successful retrieval
 	req := httptest.NewRequest("GET", "/api/applications/"+strconv.Itoa(int(application.ID)), nil)
@@ -228,54 +240,45 @@ func TestGetApplicationByID(t *testing.T) {
 	}
 }
 
-// TestGetApplicationsByJobID tests GET /api/jobs/:id/applications
-func TestGetApplicationsByJobID(t *testing.T) {
+// TestGetJobByApplicationID tests GET /api/applications/:id/job
+func TestGetJobByApplicationID(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for GetApplicationsByJobID",
+		Name: "Test Company for GetJobByApplicationID",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create test applications for this job
-	app1, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
+	// Create test application first
+	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, app1.ID)
+	defer queries.DeleteApplication(ctx, application.ID)
 
-	app2, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
-		Status:      "interview",
-		AppliedDate: time.Now(),
+	// Create job with application_id
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: application.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job",
 	})
 	if err != nil {
-		t.Fatalf("Failed to create test application: %v", err)
+		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, app2.ID)
+	defer queries.DeleteJob(ctx, job.ID)
 
 	// Test successful retrieval
-	req := httptest.NewRequest("GET", "/api/jobs/"+strconv.Itoa(int(job.ID))+"/applications", nil)
+	req := httptest.NewRequest("GET", "/api/applications/"+strconv.Itoa(int(application.ID))+"/job", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -283,27 +286,16 @@ func TestGetApplicationsByJobID(t *testing.T) {
 		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
 	}
 
-	var applications []database.Application
-	if err := json.Unmarshal(w.Body.Bytes(), &applications); err != nil {
+	var retrievedJob database.Job
+	if err := json.Unmarshal(w.Body.Bytes(), &retrievedJob); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
 
-	if len(applications) < 2 {
-		t.Errorf("Expected at least 2 applications, got %d", len(applications))
+	if retrievedJob.ID != job.ID {
+		t.Errorf("Expected job ID %d, got %d", job.ID, retrievedJob.ID)
 	}
-
-	// Verify both applications are in the list
-	found1, found2 := false, false
-	for _, a := range applications {
-		if a.ID == app1.ID {
-			found1 = true
-		}
-		if a.ID == app2.ID {
-			found2 = true
-		}
-	}
-	if !found1 || !found2 {
-		t.Error("Both created applications should be in the list")
+	if retrievedJob.ApplicationID != application.ID {
+		t.Errorf("Expected application_id %d, got %d", application.ID, retrievedJob.ApplicationID)
 	}
 }
 
@@ -314,28 +306,9 @@ func TestCreateApplication(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
-	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for CreateApplication",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test company: %v", err)
-	}
-	defer queries.DeleteCompany(ctx, company.ID)
-
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Test successful creation
+	// Test successful creation (applications no longer require job_id)
 	appliedDate := time.Now().Format("2006-01-02")
 	body := map[string]interface{}{
-		"job_id":       job.ID,
 		"status":       "applied",
 		"applied_date": appliedDate,
 		"notes":        "Test application notes",
@@ -362,16 +335,12 @@ func TestCreateApplication(t *testing.T) {
 	if created.Status != "applied" {
 		t.Errorf("Expected status 'applied', got %s", created.Status)
 	}
-	if created.JobID != job.ID {
-		t.Errorf("Expected job_id %d, got %d", job.ID, created.JobID)
-	}
 
 	// Cleanup
 	defer queries.DeleteApplication(ctx, created.ID)
 
 	// Test validation error (missing status)
 	invalidBody := map[string]interface{}{
-		"job_id":       job.ID,
 		"applied_date": appliedDate,
 	}
 	jsonBody, _ = json.Marshal(invalidBody)
@@ -387,7 +356,6 @@ func TestCreateApplication(t *testing.T) {
 
 	// Test invalid date format
 	invalidBody = map[string]interface{}{
-		"job_id":       job.ID,
 		"status":       "applied",
 		"applied_date": "invalid-date",
 	}
@@ -401,23 +369,6 @@ func TestCreateApplication(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusBadRequest, w.Code, w.Body.String())
 	}
-
-	// Test job not found
-	invalidBody = map[string]interface{}{
-		"job_id":       99999,
-		"status":       "applied",
-		"applied_date": appliedDate,
-	}
-	jsonBody, _ = json.Marshal(invalidBody)
-
-	req = httptest.NewRequest("POST", "/api/applications", bytes.NewBuffer(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusNotFound, w.Code, w.Body.String())
-	}
 }
 
 // TestUpdateApplication tests PUT /api/applications/:id
@@ -427,7 +378,7 @@ func TestUpdateApplication(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for UpdateApplication",
 	})
@@ -436,18 +387,8 @@ func TestUpdateApplication(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create a test application
+	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "applied",
 		AppliedDate: time.Now(),
 	})
@@ -455,6 +396,17 @@ func TestUpdateApplication(t *testing.T) {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
 	defer queries.DeleteApplication(ctx, application.ID)
+
+	// Create job with application_id
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: application.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
 
 	// Test successful update
 	appliedDate := time.Now().Format("2006-01-02")
@@ -501,7 +453,7 @@ func TestDeleteApplication(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for DeleteApplication",
 	})
@@ -510,23 +462,23 @@ func TestDeleteApplication(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create a test application
+	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "applied",
 		AppliedDate: time.Now(),
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
+	}
+
+	// Create job with application_id (will be cascade deleted when application is deleted)
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: application.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
 	}
 
 	// Test successful deletion
@@ -538,10 +490,16 @@ func TestDeleteApplication(t *testing.T) {
 		t.Errorf("Expected status %d, got %d. Body: %s", http.StatusOK, w.Code, w.Body.String())
 	}
 
-	// Verify it's deleted
+	// Verify application is deleted
 	_, err = queries.GetApplicationByID(ctx, application.ID)
 	if err == nil {
 		t.Error("Application should be deleted")
+	}
+
+	// Verify job is also cascade deleted
+	_, err = queries.GetJobByID(ctx, job.ID)
+	if err == nil {
+		t.Error("Job should be cascade deleted when application is deleted")
 	}
 
 	// Test not found
@@ -561,7 +519,7 @@ func TestGetAllApplications_WithPagination(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for Application Pagination",
 	})
@@ -570,20 +528,10 @@ func TestGetAllApplications_WithPagination(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job for Application Pagination",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create multiple test applications
+	// Create multiple test applications first
 	var createdApplications []database.Application
 	for i := 0; i < 15; i++ {
 		application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-			JobID:       job.ID,
 			Status:      "applied",
 			AppliedDate: time.Now(),
 			Notes:       sql.NullString{String: "Test notes " + strconv.Itoa(i+1), Valid: true},
@@ -593,6 +541,17 @@ func TestGetAllApplications_WithPagination(t *testing.T) {
 		}
 		createdApplications = append(createdApplications, application)
 		defer queries.DeleteApplication(ctx, application.ID)
+
+		// Create job for each application
+		job, err := queries.CreateJob(ctx, database.CreateJobParams{
+			ApplicationID: application.ID,
+			CompanyID:     company.ID,
+			Title:         "Test Job for Application Pagination " + strconv.Itoa(i+1),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test job: %v", err)
+		}
+		defer queries.DeleteJob(ctx, job.ID)
 	}
 
 	// Test pagination: page 1, limit 10
@@ -652,7 +611,7 @@ func TestGetAllApplications_WithPaginationAndStatus(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for Status Pagination",
 	})
@@ -661,16 +620,7 @@ func TestGetAllApplications_WithPaginationAndStatus(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job for Status Pagination",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create multiple test applications with different statuses
+	// Create multiple test applications with different statuses first
 	var createdApplications []database.Application
 	for i := 0; i < 10; i++ {
 		status := "applied"
@@ -678,7 +628,6 @@ func TestGetAllApplications_WithPaginationAndStatus(t *testing.T) {
 			status = "interview"
 		}
 		application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-			JobID:       job.ID,
 			Status:      status,
 			AppliedDate: time.Now(),
 		})
@@ -687,6 +636,17 @@ func TestGetAllApplications_WithPaginationAndStatus(t *testing.T) {
 		}
 		createdApplications = append(createdApplications, application)
 		defer queries.DeleteApplication(ctx, application.ID)
+
+		// Create job for each application
+		job, err := queries.CreateJob(ctx, database.CreateJobParams{
+			ApplicationID: application.ID,
+			CompanyID:     company.ID,
+			Title:         "Test Job for Status Pagination " + strconv.Itoa(i+1),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create test job: %v", err)
+		}
+		defer queries.DeleteJob(ctx, job.ID)
 	}
 
 	// Test pagination with status filter: page 1, limit 5
@@ -722,7 +682,7 @@ func TestGetAllApplications_PaginationEdgeCases(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create test company and job
+	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name: "Test Company for Application Edge Cases",
 	})
@@ -731,18 +691,8 @@ func TestGetAllApplications_PaginationEdgeCases(t *testing.T) {
 	}
 	defer queries.DeleteCompany(ctx, company.ID)
 
-	job, err := queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID: company.ID,
-		Title:     "Test Job for Application Edge Cases",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create test job: %v", err)
-	}
-	defer queries.DeleteJob(ctx, job.ID)
-
-	// Create a test application
+	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       job.ID,
 		Status:      "applied",
 		AppliedDate: time.Now(),
 	})
@@ -750,6 +700,17 @@ func TestGetAllApplications_PaginationEdgeCases(t *testing.T) {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
 	defer queries.DeleteApplication(ctx, application.ID)
+
+	// Create job with application_id
+	job, err := queries.CreateJob(ctx, database.CreateJobParams{
+		ApplicationID: application.ID,
+		CompanyID:     company.ID,
+		Title:         "Test Job for Application Edge Cases",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test job: %v", err)
+	}
+	defer queries.DeleteJob(ctx, job.ID)
 
 	// Test: Page beyond total pages (should return empty data)
 	req := httptest.NewRequest("GET", "/api/applications?page=999&limit=10", nil)

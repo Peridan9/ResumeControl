@@ -19,9 +19,9 @@ export default function ApplicationTable({
 }: ApplicationTableProps) {
   const navigate = useNavigate()
 
-  // Helper function to get job by ID
-  const getJob = (jobId: number): Job | undefined => {
-    return jobs.find((job) => job.id === jobId)
+  // Helper function to get job by application ID
+  const getJob = (applicationId: number): Job | undefined => {
+    return jobs.find((job) => job.application_id === applicationId)
   }
 
   // Helper function to get company by ID
@@ -98,7 +98,7 @@ export default function ApplicationTable({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {applications?.map((application) => {
-              const job = getJob(application.job_id)
+              const job = getJob(application.id)
               const company = job ? getCompany(job.company_id) : undefined
               const notesText = getNotesText(application.notes)
               const hasNotes = notesText && notesText.trim() !== ''

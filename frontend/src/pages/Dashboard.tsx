@@ -136,7 +136,7 @@ export default function Dashboard() {
 
     // Get top N and enrich with job and company data
     return sorted.slice(0, limit).map((app) => {
-      const job = jobs.find((j) => j.id === app.job_id)
+      const job = jobs.find((j) => j.application_id === app.id)
       const company = job ? companies.find((c) => c.id === job.company_id) : undefined
       return { ...app, job, company }
     })

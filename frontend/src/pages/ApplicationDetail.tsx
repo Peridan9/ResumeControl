@@ -41,8 +41,8 @@ export default function ApplicationDetail() {
       const applicationData = await applicationsAPI.getById(applicationId)
       setApplication(applicationData)
 
-      // Fetch job
-      const jobData = await jobsAPI.getById(applicationData.job_id)
+      // Fetch job by application ID (jobs now belong to applications)
+      const jobData = await applicationsAPI.getJobByApplicationId(applicationId)
       setJob(jobData)
 
       // Fetch company

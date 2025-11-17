@@ -78,8 +78,6 @@ export const jobsAPI = {
     fetchAPI<void>(`/jobs/${id}`, {
       method: 'DELETE',
     }),
-  getApplications: (jobId: number) =>
-    fetchAPI<Application[]>(`/jobs/${jobId}/applications`),
 }
 
 // Applications API
@@ -103,5 +101,7 @@ export const applicationsAPI = {
     fetchAPI<void>(`/applications/${id}`, {
       method: 'DELETE',
     }),
+  getJobByApplicationId: (applicationId: number) =>
+    fetchAPI<Job>(`/applications/${applicationId}/job`),
 }
 

@@ -23,11 +23,10 @@ WHERE status = $1;
 SELECT * FROM applications
 WHERE id = $1;
 
--- name: GetApplicationsByJobID :many
--- Get all applications for a specific job
-SELECT * FROM applications
-WHERE job_id = $1
-ORDER BY applied_date DESC;
+-- name: GetJobByApplicationID :one
+-- Get the job for a specific application
+SELECT * FROM jobs
+WHERE application_id = $1;
 
 -- name: GetApplicationsByStatus :many
 -- Get all applications with a specific status
@@ -37,8 +36,9 @@ ORDER BY applied_date DESC;
 
 -- name: CreateApplication :one
 -- Create a new application and return the created record
-INSERT INTO applications (job_id, status, applied_date, notes)
-VALUES ($1, $2, $3, $4)
+-- Note: job_id is no longer needed, jobs will reference applications
+INSERT INTO applications (status, applied_date, notes)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: UpdateApplication :one

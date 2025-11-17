@@ -106,21 +106,21 @@ export default function Applications() {
         name: formData.companyName,
       })
 
-      // Step 2: Create job
-      const job = await jobsAPI.create({
+      // Step 2: Create application first (jobs now belong to applications)
+      const application = await applicationsAPI.create({
+        status: formData.status,
+        applied_date: formData.appliedDate,
+        notes: formData.notes,
+      })
+
+      // Step 3: Create job with application_id
+      await jobsAPI.create({
+        application_id: application.id,
         company_id: company.id,
         title: formData.jobTitle,
         description: formData.jobDescription,
         requirements: formData.jobRequirements,
         location: formData.jobLocation,
-      })
-
-      // Step 3: Create application
-      await applicationsAPI.create({
-        job_id: job.id,
-        status: formData.status,
-        applied_date: formData.appliedDate,
-        notes: formData.notes,
       })
 
       setSuccessMessage('Application created successfully!')

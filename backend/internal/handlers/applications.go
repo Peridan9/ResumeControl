@@ -159,32 +159,36 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 	c.JSON(http.StatusOK, application)
 }
 
-// GetApplicationsByJobID handles GET /api/jobs/:id/applications
-// Returns all applications for a specific job
-func (h *ApplicationHandler) GetApplicationsByJobID(c *gin.Context) {
-	// Get job ID from URL parameter
-	jobIDStr := c.Param("id")
-	jobID, err := strconv.Atoi(jobIDStr)
+// GetJobByApplicationID handles GET /api/applications/:id/job
+// Returns the job for a specific application
+func (h *ApplicationHandler) GetJobByApplicationID(c *gin.Context) {
+	// Get application ID from URL parameter
+	applicationIDStr := c.Param("id")
+	applicationID, err := strconv.Atoi(applicationIDStr)
 	if err != nil {
-		sendBadRequest(c, "Invalid job ID", "ID must be a number")
+		sendBadRequest(c, "Invalid application ID", "ID must be a number")
 		return
 	}
 
 	// Query database
 	ctx := c.Request.Context()
-	applications, err := h.queries.GetApplicationsByJobID(ctx, int32(jobID))
+	job, err := h.queries.GetJobByApplicationID(ctx, int32(applicationID))
 	if err != nil {
-		sendInternalError(c, "Failed to fetch applications", err)
+		if err == sql.ErrNoRows {
+			sendNotFound(c, "Job")
+			return
+		}
+		sendInternalError(c, "Failed to fetch job", err)
 		return
 	}
 
-	c.JSON(http.StatusOK, applications)
+	c.JSON(http.StatusOK, job)
 }
 
 
 // CreateApplicationRequest represents the JSON body for creating an application
+// Note: job_id is no longer required - jobs will be created after applications
 type CreateApplicationRequest struct {
-	JobID       int32  `json:"job_id" binding:"required"`
 	Status      string `json:"status" binding:"required"`
 	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02"
 	Notes       string `json:"notes"`
@@ -216,15 +220,8 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 	// Get request context
 	ctx := c.Request.Context()
 
-	// Validate job exists
-	_, err = h.queries.GetJobByID(ctx, req.JobID)
-	if handleDatabaseError(c, err, "Job") {
-		return
-	}
-
-	// Create application
+	// Create application (no job_id needed - jobs will reference applications)
 	application, err := h.queries.CreateApplication(ctx, database.CreateApplicationParams{
-		JobID:       req.JobID,
 		Status:      req.Status,
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},

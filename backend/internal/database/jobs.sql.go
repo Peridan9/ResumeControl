@@ -23,22 +23,25 @@ func (q *Queries) CountJobs(ctx context.Context) (int64, error) {
 }
 
 const createJob = `-- name: CreateJob :one
-INSERT INTO jobs (company_id, title, description, requirements, location)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, company_id, title, description, requirements, location, created_at, updated_at
+INSERT INTO jobs (application_id, company_id, title, description, requirements, location)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, company_id, title, description, requirements, location, created_at, updated_at, application_id
 `
 
 type CreateJobParams struct {
-	CompanyID    int32          `json:"company_id"`
-	Title        string         `json:"title"`
-	Description  sql.NullString `json:"description"`
-	Requirements sql.NullString `json:"requirements"`
-	Location     sql.NullString `json:"location"`
+	ApplicationID int32          `json:"application_id"`
+	CompanyID     int32          `json:"company_id"`
+	Title         string         `json:"title"`
+	Description   sql.NullString `json:"description"`
+	Requirements  sql.NullString `json:"requirements"`
+	Location      sql.NullString `json:"location"`
 }
 
 // Create a new job and return the created record
+// Jobs now belong to applications (application_id is required)
 func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, error) {
 	row := q.db.QueryRowContext(ctx, createJob,
+		arg.ApplicationID,
 		arg.CompanyID,
 		arg.Title,
 		arg.Description,
@@ -55,6 +58,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		&i.Location,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplicationID,
 	)
 	return i, err
 }
@@ -71,7 +75,7 @@ func (q *Queries) DeleteJob(ctx context.Context, id int32) error {
 }
 
 const getAllJobs = `-- name: GetAllJobs :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at FROM jobs
+SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
 ORDER BY created_at DESC
 `
 
@@ -94,6 +98,7 @@ func (q *Queries) GetAllJobs(ctx context.Context) ([]Job, error) {
 			&i.Location,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApplicationID,
 		); err != nil {
 			return nil, err
 		}
@@ -109,7 +114,7 @@ func (q *Queries) GetAllJobs(ctx context.Context) ([]Job, error) {
 }
 
 const getAllJobsPaginated = `-- name: GetAllJobsPaginated :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at FROM jobs
+SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `
@@ -138,6 +143,7 @@ func (q *Queries) GetAllJobsPaginated(ctx context.Context, arg GetAllJobsPaginat
 			&i.Location,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApplicationID,
 		); err != nil {
 			return nil, err
 		}
@@ -153,7 +159,7 @@ func (q *Queries) GetAllJobsPaginated(ctx context.Context, arg GetAllJobsPaginat
 }
 
 const getJobByID = `-- name: GetJobByID :one
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at FROM jobs
+SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
 WHERE id = $1
 `
 
@@ -170,12 +176,53 @@ func (q *Queries) GetJobByID(ctx context.Context, id int32) (Job, error) {
 		&i.Location,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplicationID,
 	)
 	return i, err
 }
 
+const getJobsByApplicationID = `-- name: GetJobsByApplicationID :many
+SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
+WHERE application_id = $1
+ORDER BY created_at DESC
+`
+
+// Get all jobs for a specific application (should typically be just one)
+func (q *Queries) GetJobsByApplicationID(ctx context.Context, applicationID int32) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getJobsByApplicationID, applicationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Title,
+			&i.Description,
+			&i.Requirements,
+			&i.Location,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApplicationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getJobsByCompanyID = `-- name: GetJobsByCompanyID :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at FROM jobs
+SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
 WHERE company_id = $1
 ORDER BY created_at DESC
 `
@@ -199,6 +246,7 @@ func (q *Queries) GetJobsByCompanyID(ctx context.Context, companyID int32) ([]Jo
 			&i.Location,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApplicationID,
 		); err != nil {
 			return nil, err
 		}
@@ -221,7 +269,7 @@ SET title = $2,
     location = $5,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, company_id, title, description, requirements, location, created_at, updated_at
+RETURNING id, company_id, title, description, requirements, location, created_at, updated_at, application_id
 `
 
 type UpdateJobParams struct {
@@ -251,6 +299,7 @@ func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (Job, erro
 		&i.Location,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplicationID,
 	)
 	return i, err
 }

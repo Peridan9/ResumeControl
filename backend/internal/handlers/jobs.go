@@ -124,12 +124,14 @@ func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
 }
 
 // CreateJobRequest represents the JSON body for creating a job
+// Jobs now belong to applications (application_id is required)
 type CreateJobRequest struct {
-	CompanyID    int32  `json:"company_id" binding:"required"`
-	Title        string `json:"title" binding:"required"`
-	Description  string `json:"description"`
-	Requirements string `json:"requirements"`
-	Location     string `json:"location"`
+	ApplicationID int32  `json:"application_id" binding:"required"`
+	CompanyID     int32  `json:"company_id" binding:"required"`
+	Title         string `json:"title" binding:"required"`
+	Description   string `json:"description"`
+	Requirements  string `json:"requirements"`
+	Location      string `json:"location"`
 }
 
 // CreateJob handles POST /api/jobs
@@ -151,19 +153,26 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	// Get request context
 	ctx := c.Request.Context()
 
+	// Validate application exists
+	_, err := h.queries.GetApplicationByID(ctx, req.ApplicationID)
+	if handleDatabaseError(c, err, "Application") {
+		return
+	}
+
 	// Validate company exists
-	_, err := h.queries.GetCompanyByID(ctx, req.CompanyID)
+	_, err = h.queries.GetCompanyByID(ctx, req.CompanyID)
 	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
-	// Create job
+	// Create job (now requires application_id)
 	job, err := h.queries.CreateJob(ctx, database.CreateJobParams{
-		CompanyID:    req.CompanyID,
-		Title:        req.Title,
-		Description:  sql.NullString{String: req.Description, Valid: req.Description != ""},
-		Requirements: sql.NullString{String: req.Requirements, Valid: req.Requirements != ""},
-		Location:     sql.NullString{String: req.Location, Valid: req.Location != ""},
+		ApplicationID: req.ApplicationID,
+		CompanyID:     req.CompanyID,
+		Title:         req.Title,
+		Description:   sql.NullString{String: req.Description, Valid: req.Description != ""},
+		Requirements:  sql.NullString{String: req.Requirements, Valid: req.Requirements != ""},
+		Location:      sql.NullString{String: req.Location, Valid: req.Location != ""},
 	})
 	if handleDatabaseError(c, err, "Job") {
 		return
