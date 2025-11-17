@@ -10,7 +10,6 @@ const STATUS_OPTIONS = [
   { value: 'offer', label: 'Offer' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
-  { value: 'accepted', label: 'Accepted' },
 ]
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,12 +18,10 @@ const STATUS_COLORS: Record<string, string> = {
   offer: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
   withdrawn: 'bg-gray-100 text-gray-800',
-  accepted: 'bg-green-100 text-green-800',
 }
 
 interface Statistics {
   totalCompanies: number
-  totalJobs: number
   totalApplications: number
   applicationsByStatus: Record<string, number>
   applicationsThisMonth: number
@@ -39,7 +36,6 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<Statistics>({
     totalCompanies: 0,
-    totalJobs: 0,
     totalApplications: 0,
     applicationsByStatus: {},
     applicationsThisMonth: 0,
@@ -71,7 +67,6 @@ export default function Dashboard() {
 
       setStats({
         totalCompanies: companies.length,
-        totalJobs: jobs.length,
         totalApplications: applications.length,
         applicationsByStatus,
         applicationsThisMonth: thisMonth,
@@ -193,14 +188,10 @@ export default function Dashboard() {
       <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Companies</h2>
           <p className="text-3xl font-bold text-gray-900">{stats.totalCompanies}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Jobs</h2>
-          <p className="text-3xl font-bold text-gray-900">{stats.totalJobs}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Applications</h2>

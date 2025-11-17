@@ -92,7 +92,6 @@ export default function ApplicationDetail() {
       offer: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
       withdrawn: 'bg-gray-100 text-gray-800',
-      accepted: 'bg-green-100 text-green-800',
     }
     return statusColors[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
   }
@@ -208,10 +207,10 @@ export default function ApplicationDetail() {
     )
   }
 
-  const companyWebsite = nullStringToString(company?.website)
-  const jobDescription = nullStringToString(job?.description)
-  const jobRequirements = nullStringToString(job?.requirements)
-  const jobLocation = nullStringToString(job?.location)
+  const companyWebsite = company?.website ? nullStringToString(company.website) : ''
+  const jobDescription = job?.description ? nullStringToString(job.description) : ''
+  const jobRequirements = job?.requirements ? nullStringToString(job.requirements) : ''
+  const jobLocation = job?.location ? nullStringToString(job.location) : ''
   const notes = nullStringToString(application.notes)
   const createdAt = nullTimeToString(application.created_at)
   const updatedAt = nullTimeToString(application.updated_at)

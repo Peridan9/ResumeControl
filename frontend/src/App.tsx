@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
 import Companies from './pages/Companies'
-import Jobs from './pages/Jobs'
 import Applications from './pages/Applications'
 import ApplicationDetail from './pages/ApplicationDetail'
 
@@ -13,7 +12,6 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/companies" element={<Companies />} />
-          <Route path="/jobs" element={<Jobs />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/applications/:id" element={<ApplicationDetail />} />
         </Routes>

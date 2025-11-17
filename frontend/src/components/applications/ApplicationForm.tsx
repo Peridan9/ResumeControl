@@ -27,7 +27,6 @@ const STATUS_OPTIONS = [
   { value: 'offer', label: 'Offer' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
-  { value: 'accepted', label: 'Accepted' },
 ]
 
 const STORAGE_KEY = 'applicationFormDraft'

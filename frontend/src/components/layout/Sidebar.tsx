@@ -2,14 +2,12 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   Squares2X2Icon,
   BuildingOfficeIcon,
-  BriefcaseIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Squares2X2Icon },
   { name: 'Companies', href: '/companies', icon: BuildingOfficeIcon },
-  { name: 'Jobs', href: '/jobs', icon: BriefcaseIcon },
   { name: 'Applications', href: '/applications', icon: DocumentTextIcon },
 ]
 
