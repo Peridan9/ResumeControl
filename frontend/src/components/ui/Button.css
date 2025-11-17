@@ -1,0 +1,167 @@
+/* Button with diagonal stripe pattern - based on CodePen design */
+:root {
+  --btn-stripe-height: 7px;
+}
+
+@keyframes stripe-slide {
+  0% { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
+}
+
+.btn {
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  line-height: normal;
+  cursor: pointer;
+  -moz-user-select: text;
+  display: block;
+  text-decoration: none;
+  text-transform: uppercase;
+  padding: 16px 36px 22px;
+  border-radius: 6px;
+  transition: all 0.5s ease;
+}
+
+.btn:-moz-focus-inner {
+  padding: 0;
+  border: 0;
+}
+
+.btn--stripe {
+  overflow: hidden;
+  position: relative;
+}
+
+.btn--stripe::after {
+  content: '';
+  display: block;
+  height: var(--btn-stripe-height);
+  width: 100%;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #666,
+    #666 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-top: 1px solid #666;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background-size: var(--btn-stripe-height) var(--btn-stripe-height);
+}
+
+/* Primary variant (default gray) */
+.btn--primary {
+  background-color: #fff;
+  color: #666;
+  border: 2px solid #666;
+}
+
+.btn--primary.btn--stripe:hover {
+  background-color: #666;
+  color: #fff;
+  border-color: #000;
+}
+
+.btn--primary.btn--stripe:hover::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #fff,
+    #fff 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top: 1px solid #000;
+  animation: stripe-slide 12s infinite linear forwards;
+}
+
+/* Secondary variant (lighter gray) */
+.btn--secondary {
+  background-color: #fff;
+  color: #9ca3af;
+  border: 2px solid #9ca3af;
+}
+
+.btn--secondary.btn--stripe::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #9ca3af,
+    #9ca3af 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top: 1px solid #9ca3af;
+}
+
+.btn--secondary.btn--stripe:hover {
+  background-color: #9ca3af;
+  color: #fff;
+  border-color: #6b7280;
+}
+
+.btn--secondary.btn--stripe:hover::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #fff,
+    #fff 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top: 1px solid #6b7280;
+  animation: stripe-slide 12s infinite linear forwards;
+}
+
+/* Danger variant (red) */
+.btn--danger {
+  background-color: #fff;
+  color: #dc2626;
+  border: 2px solid #dc2626;
+}
+
+.btn--danger.btn--stripe::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #dc2626,
+    #dc2626 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top: 1px solid #dc2626;
+}
+
+.btn--danger.btn--stripe:hover {
+  background-color: #dc2626;
+  color: #fff;
+  border-color: #991b1b;
+}
+
+.btn--danger.btn--stripe:hover::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #fff,
+    #fff 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top: 1px solid #991b1b;
+  animation: stripe-slide 12s infinite linear forwards;
+}
+
+/* Focus and disabled states */
+.btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
