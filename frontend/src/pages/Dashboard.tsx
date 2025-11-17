@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { companiesAPI, jobsAPI, applicationsAPI } from '../services/api'
 import type { Application, Job, Company } from '../types'
-import { nullStringToString } from '../utils/helpers'
 
 const STATUS_OPTIONS = [
   { value: 'applied', label: 'Applied' },
@@ -187,63 +186,6 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Companies</h2>
-          <p className="text-3xl font-bold text-gray-900">{stats.totalCompanies}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Applications</h2>
-          <p className="text-3xl font-bold text-gray-900">{stats.totalApplications}</p>
-        </div>
-      </div>
-
-      {/* Application Status Breakdown */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Application Status Breakdown</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {STATUS_OPTIONS.map((status) => {
-            const count = stats.applicationsByStatus[status.value] || 0
-            const percentage = getStatusPercentage(status.value, stats.totalApplications)
-            const colorClass = STATUS_COLORS[status.value] || 'bg-gray-100 text-gray-800'
-
-            return (
-              <div key={status.value} className="bg-white p-4 rounded-lg shadow">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${colorClass}`}>
-                    {status.label}
-                  </span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{count}</p>
-                {stats.totalApplications > 0 && (
-                  <p className="text-sm text-gray-500 mt-1">{percentage}%</p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Time-Based Statistics */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Applications This Month</h3>
-            <p className="text-3xl font-bold text-gray-900">{stats.applicationsThisMonth}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Applications This Week</h3>
-            <p className="text-3xl font-bold text-gray-900">{stats.applicationsThisWeek}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Applications Today</h3>
-            <p className="text-3xl font-bold text-gray-900">{stats.applicationsToday}</p>
-          </div>
-        </div>
-      </div>
-
       {/* Recent Applications */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Applications</h2>
@@ -306,6 +248,63 @@ export default function Dashboard() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Time-Based Statistics */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">Applications This Month</h3>
+            <p className="text-3xl font-bold text-gray-900">{stats.applicationsThisMonth}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">Applications This Week</h3>
+            <p className="text-3xl font-bold text-gray-900">{stats.applicationsThisWeek}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">Applications Today</h3>
+            <p className="text-3xl font-bold text-gray-900">{stats.applicationsToday}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Application Status Breakdown */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Application Status Breakdown</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {STATUS_OPTIONS.map((status) => {
+            const count = stats.applicationsByStatus[status.value] || 0
+            const percentage = getStatusPercentage(status.value, stats.totalApplications)
+            const colorClass = STATUS_COLORS[status.value] || 'bg-gray-100 text-gray-800'
+
+            return (
+              <div key={status.value} className="bg-white p-4 rounded-lg shadow min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${colorClass} whitespace-nowrap`}>
+                    {status.label}
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{count}</p>
+                {stats.totalApplications > 0 && (
+                  <p className="text-sm text-gray-500 mt-1">{percentage}%</p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Companies</h2>
+          <p className="text-3xl font-bold text-gray-900">{stats.totalCompanies}</p>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">Total Applications</h2>
+          <p className="text-3xl font-bold text-gray-900">{stats.totalApplications}</p>
+        </div>
       </div>
     </div>
   )
