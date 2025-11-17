@@ -27,9 +27,20 @@ export interface Job {
 
 export interface Application {
   id: number
+  contact_id?: number | null
   status: string
   applied_date: string
   notes: NullString
+  created_at: NullTime
+  updated_at: NullTime
+}
+
+export interface Contact {
+  id: number
+  name: string
+  email: NullString
+  phone: NullString
+  linkedin: NullString
   created_at: NullTime
   updated_at: NullTime
 }
@@ -65,12 +76,28 @@ export interface UpdateJobRequest {
 export interface CreateApplicationRequest {
   status: string
   applied_date: string
+  contact_id?: number | null
   notes?: string
 }
 
 export interface UpdateApplicationRequest {
   status: string
   applied_date: string
+  contact_id?: number | null
   notes?: string
+}
+
+export interface CreateContactRequest {
+  name: string
+  email?: string
+  phone?: string
+  linkedin?: string
+}
+
+export interface UpdateContactRequest {
+  name: string
+  email?: string
+  phone?: string
+  linkedin?: string
 }
 

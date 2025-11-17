@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { applicationsAPI, jobsAPI, companiesAPI } from '../services/api'
-import type { Application, Job, Company } from '../types'
+import { applicationsAPI, jobsAPI, companiesAPI, contactsAPI } from '../services/api'
+import type { Application, Job, Company, Contact } from '../types'
 import { nullStringToString, nullTimeToString } from '../utils/helpers'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
@@ -14,6 +14,8 @@ export default function ApplicationDetail() {
   const [application, setApplication] = useState<Application | null>(null)
   const [job, setJob] = useState<Job | null>(null)
   const [company, setCompany] = useState<Company | null>(null)
+  const [contact, setContact] = useState<Contact | null>(null)
+  const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -48,6 +50,21 @@ export default function ApplicationDetail() {
       // Fetch company
       const companyData = await companiesAPI.getById(jobData.company_id)
       setCompany(companyData)
+
+      // Fetch contact if application has contact_id
+      if (applicationData.contact_id) {
+        try {
+          const contactData = await contactsAPI.getById(applicationData.contact_id)
+          setContact(contactData)
+        } catch (err) {
+          // Contact might not exist, ignore error
+          console.warn('Failed to fetch contact:', err)
+        }
+      }
+
+      // Fetch all contacts for the form dropdown
+      const contactsData = await contactsAPI.getAll()
+      setContacts(contactsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch application details')
     } finally {
@@ -114,6 +131,7 @@ export default function ApplicationDetail() {
     jobLocation?: string
     status: string
     appliedDate: string
+    contactId?: number | null
     notes?: string
   }) => {
     if (!application || !job || !company) return
@@ -142,6 +160,7 @@ export default function ApplicationDetail() {
       await applicationsAPI.update(application.id, {
         status: formData.status,
         applied_date: formData.appliedDate,
+        contact_id: formData.contactId || null,
         notes: formData.notes,
       })
 
@@ -305,6 +324,60 @@ export default function ApplicationDetail() {
           </div>
         </div>
 
+        {/* Contact Information Card */}
+        {contact && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Contact Information</h2>
+            <div className="space-y-3">
+              <div>
+                <span className="text-sm font-medium text-gray-500">Name</span>
+                <p className="text-lg text-gray-900">{contact.name}</p>
+              </div>
+              {contact.email && nullStringToString(contact.email) && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Email</span>
+                  <p className="text-lg">
+                    <a
+                      href={`mailto:${nullStringToString(contact.email)}`}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      {nullStringToString(contact.email)}
+                    </a>
+                  </p>
+                </div>
+              )}
+              {contact.phone && nullStringToString(contact.phone) && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Phone</span>
+                  <p className="text-lg">
+                    <a
+                      href={`tel:${nullStringToString(contact.phone)}`}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      {nullStringToString(contact.phone)}
+                    </a>
+                  </p>
+                </div>
+              )}
+              {contact.linkedin && nullStringToString(contact.linkedin) && (
+                <div>
+                  <span className="text-sm font-medium text-gray-500">LinkedIn</span>
+                  <p className="text-lg">
+                    <a
+                      href={nullStringToString(contact.linkedin) || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      {nullStringToString(contact.linkedin)}
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Application Details Card */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Application Details</h2>
@@ -359,6 +432,7 @@ export default function ApplicationDetail() {
           application={application}
           job={job}
           company={company}
+          contacts={contacts}
           onSubmit={handleUpdate}
           onCancel={handleCloseEditModal}
           isLoading={isSubmitting}

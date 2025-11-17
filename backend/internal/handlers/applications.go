@@ -191,6 +191,7 @@ func (h *ApplicationHandler) GetJobByApplicationID(c *gin.Context) {
 type CreateApplicationRequest struct {
 	Status      string `json:"status" binding:"required"`
 	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02"
+	ContactID   *int   `json:"contact_id"`                      // Optional contact ID
 	Notes       string `json:"notes"`
 }
 
@@ -220,11 +221,28 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 	// Get request context
 	ctx := c.Request.Context()
 
+	// Validate contact_id if provided
+	var contactID sql.NullInt32
+	if req.ContactID != nil {
+		// Check if contact exists
+		_, err := h.queries.GetContactByID(ctx, int32(*req.ContactID))
+		if err != nil {
+			if err == sql.ErrNoRows {
+				sendBadRequest(c, "Contact not found", "The specified contact ID does not exist")
+				return
+			}
+			sendInternalError(c, "Failed to validate contact", err)
+			return
+		}
+		contactID = sql.NullInt32{Int32: int32(*req.ContactID), Valid: true}
+	}
+
 	// Create application (no job_id needed - jobs will reference applications)
 	application, err := h.queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      req.Status,
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},
+		ContactID:   contactID,
 	})
 	if handleDatabaseError(c, err, "Application") {
 		return
@@ -237,6 +255,7 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 type UpdateApplicationRequest struct {
 	Status      string `json:"status" binding:"required"`
 	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02"
+	ContactID   *int   `json:"contact_id"`                      // Optional contact ID (null to remove)
 	Notes       string `json:"notes"`
 }
 
@@ -280,12 +299,29 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 		return
 	}
 
+	// Validate contact_id if provided
+	var contactID sql.NullInt32
+	if req.ContactID != nil {
+		// Check if contact exists
+		_, err := h.queries.GetContactByID(ctx, int32(*req.ContactID))
+		if err != nil {
+			if err == sql.ErrNoRows {
+				sendBadRequest(c, "Contact not found", "The specified contact ID does not exist")
+				return
+			}
+			sendInternalError(c, "Failed to validate contact", err)
+			return
+		}
+		contactID = sql.NullInt32{Int32: int32(*req.ContactID), Valid: true}
+	}
+
 	// Update application
 	application, err := h.queries.UpdateApplication(ctx, database.UpdateApplicationParams{
 		ID:          int32(id),
 		Status:      req.Status,
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},
+		ContactID:   contactID,
 	})
 	if handleDatabaseError(c, err, "Application") {
 		return

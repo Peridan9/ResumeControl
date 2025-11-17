@@ -16,12 +16,23 @@ type Application struct {
 	Notes       sql.NullString `json:"notes"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
+	ContactID   sql.NullInt32  `json:"contact_id"`
 }
 
 type Company struct {
 	ID        int32          `json:"id"`
 	Name      string         `json:"name"`
 	Website   sql.NullString `json:"website"`
+	CreatedAt sql.NullTime   `json:"created_at"`
+	UpdatedAt sql.NullTime   `json:"updated_at"`
+}
+
+type Contact struct {
+	ID        int32          `json:"id"`
+	Name      string         `json:"name"`
+	Email     sql.NullString `json:"email"`
+	Phone     sql.NullString `json:"phone"`
+	Linkedin  sql.NullString `json:"linkedin"`
 	CreatedAt sql.NullTime   `json:"created_at"`
 	UpdatedAt sql.NullTime   `json:"updated_at"`
 }

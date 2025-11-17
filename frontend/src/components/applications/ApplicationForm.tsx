@@ -1,5 +1,5 @@
 import { useState, FormEvent, useEffect, useRef } from 'react'
-import type { Application, Job, Company } from '../../types'
+import type { Application, Job, Company, Contact } from '../../types'
 import { nullStringToString } from '../../utils/helpers'
 import Button from '../ui/Button'
 
@@ -7,6 +7,7 @@ interface ApplicationFormProps {
   application?: Application | null
   job?: Job | null
   company?: Company | null
+  contacts?: Contact[]
   onSubmit: (data: {
     companyName: string
     jobTitle: string
@@ -15,6 +16,7 @@ interface ApplicationFormProps {
     jobLocation?: string
     status: string
     appliedDate: string
+    contactId?: number | null
     notes?: string
   }) => Promise<void>
   onCancel: () => void
@@ -39,6 +41,7 @@ interface FormDraft {
   jobLocation: string
   status: string
   appliedDate: string
+  contactId: string
   notes: string
 }
 
@@ -46,6 +49,7 @@ export default function ApplicationForm({
   application,
   job,
   company,
+  contacts = [],
   onSubmit,
   onCancel,
   isLoading = false,
@@ -120,6 +124,11 @@ export default function ApplicationForm({
   const [notes, setNotes] = useState(
     isEditMode && application ? nullStringToString(application.notes) || '' : draft?.notes || ''
   )
+  const [contactId, setContactId] = useState<string>(
+    isEditMode && application?.contact_id
+      ? String(application.contact_id)
+      : draft?.contactId || ''
+  )
   const [error, setError] = useState<string | null>(null)
 
   // Debounce timer ref
@@ -142,6 +151,7 @@ export default function ApplicationForm({
         jobLocation,
         status,
         appliedDate,
+        contactId,
         notes,
       })
     }, 300)
@@ -152,7 +162,7 @@ export default function ApplicationForm({
         clearTimeout(saveTimerRef.current)
       }
     }
-  }, [companyName, jobTitle, jobDescription, jobRequirements, jobLocation, status, appliedDate, notes])
+  }, [companyName, jobTitle, jobDescription, jobRequirements, jobLocation, status, appliedDate, contactId, notes])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -188,6 +198,7 @@ export default function ApplicationForm({
         jobLocation: jobLocation.trim() || undefined,
         status,
         appliedDate,
+        contactId: contactId ? Number(contactId) : null,
         notes: notes.trim() || undefined,
       })
 
@@ -202,6 +213,7 @@ export default function ApplicationForm({
       setJobLocation('')
       setStatus('applied')
       setAppliedDate(getDefaultDate())
+      setContactId('')
       setNotes('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save application')
@@ -339,6 +351,27 @@ export default function ApplicationForm({
           required
           disabled={isLoading}
         />
+      </div>
+
+      {/* Contact */}
+      <div>
+        <label htmlFor="contactId" className="block text-sm font-medium text-gray-700 mb-1">
+          Contact (optional)
+        </label>
+        <select
+          id="contactId"
+          value={contactId}
+          onChange={(e) => setContactId(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={isLoading}
+        >
+          <option value="">No contact</option>
+          {contacts.map((contact) => (
+            <option key={contact.id} value={contact.id}>
+              {contact.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Notes */}

@@ -4,12 +4,15 @@ import type {
   Company,
   Job,
   Application,
+  Contact,
   CreateCompanyRequest,
   UpdateCompanyRequest,
   CreateJobRequest,
   UpdateJobRequest,
   CreateApplicationRequest,
   UpdateApplicationRequest,
+  CreateContactRequest,
+  UpdateContactRequest,
 } from '../types'
 
 const API_BASE_URL = '/api'
@@ -103,5 +106,25 @@ export const applicationsAPI = {
     }),
   getJobByApplicationId: (applicationId: number) =>
     fetchAPI<Job>(`/applications/${applicationId}/job`),
+}
+
+// Contacts API
+export const contactsAPI = {
+  getAll: () => fetchAPI<Contact[]>('/contacts'),
+  getById: (id: number) => fetchAPI<Contact>(`/contacts/${id}`),
+  create: (data: CreateContactRequest) =>
+    fetchAPI<Contact>('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: number, data: UpdateContactRequest) =>
+    fetchAPI<Contact>(`/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: number) =>
+    fetchAPI<void>(`/contacts/${id}`, {
+      method: 'DELETE',
+    }),
 }
 

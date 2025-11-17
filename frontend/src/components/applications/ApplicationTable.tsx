@@ -1,6 +1,14 @@
 import { useNavigate } from 'react-router-dom'
-import { DocumentTextIcon } from '@heroicons/react/24/outline'
-import type { Application, Job, Company } from '../../types'
+import {
+  BuildingOfficeIcon,
+  BriefcaseIcon,
+  CheckCircleIcon,
+  CalendarIcon,
+  ClockIcon,
+  UserIcon,
+  DocumentTextIcon,
+} from '@heroicons/react/24/outline'
+import type { Application, Job, Company, Contact } from '../../types'
 import { nullTimeToString, nullStringToString } from '../../utils/helpers'
 import Tooltip from '../ui/Tooltip'
 
@@ -8,6 +16,7 @@ interface ApplicationTableProps {
   applications: Application[]
   jobs: Job[]
   companies: Company[]
+  contacts?: Contact[] | null
   emptyMessage?: string
 }
 
@@ -15,6 +24,7 @@ export default function ApplicationTable({
   applications,
   jobs,
   companies,
+  contacts = [],
   emptyMessage = 'No applications found',
 }: ApplicationTableProps) {
   const navigate = useNavigate()
@@ -27,6 +37,12 @@ export default function ApplicationTable({
   // Helper function to get company by ID
   const getCompany = (companyId: number): Company | undefined => {
     return companies.find((company) => company.id === companyId)
+  }
+
+  // Helper function to get contact by ID
+  const getContact = (contactId: number | null | undefined): Contact | undefined => {
+    if (!contactId || !contacts) return undefined
+    return contacts.find((contact) => contact.id === contactId)
   }
 
   // Helper function to get notes text
@@ -77,22 +93,46 @@ export default function ApplicationTable({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Company
+                <div className="flex items-center space-x-1">
+                  <BuildingOfficeIcon className="w-4 h-4" />
+                  <span>Company</span>
+                </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Job Title
+                <div className="flex items-center space-x-1">
+                  <BriefcaseIcon className="w-4 h-4" />
+                  <span>Job Title</span>
+                </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                <div className="flex items-center space-x-1">
+                  <CheckCircleIcon className="w-4 h-4" />
+                  <span>Status</span>
+                </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Applied Date
+                <div className="flex items-center space-x-1">
+                  <CalendarIcon className="w-4 h-4" />
+                  <span>Applied Date</span>
+                </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Last Updated
+                <div className="flex items-center space-x-1">
+                  <ClockIcon className="w-4 h-4" />
+                  <span>Last Updated</span>
+                </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Notes
+                <div className="flex items-center space-x-1">
+                  <UserIcon className="w-4 h-4" />
+                  <span>Contact</span>
+                </div>
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="flex items-center space-x-1">
+                  <DocumentTextIcon className="w-4 h-4" />
+                  <span>Notes</span>
+                </div>
               </th>
             </tr>
           </thead>
@@ -100,6 +140,7 @@ export default function ApplicationTable({
             {applications?.map((application) => {
               const job = getJob(application.id)
               const company = job ? getCompany(job.company_id) : undefined
+              const contact = getContact(application.contact_id)
               const notesText = getNotesText(application.notes)
               const hasNotes = notesText && notesText.trim() !== ''
 
@@ -123,6 +164,9 @@ export default function ApplicationTable({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatNullTime(application.updated_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {contact?.name || <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {hasNotes ? (

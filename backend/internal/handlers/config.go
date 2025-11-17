@@ -16,6 +16,7 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 	companyHandler := NewCompanyHandler(cfg.DB)
 	jobHandler := NewJobHandler(cfg.DB)
 	applicationHandler := NewApplicationHandler(cfg.DB)
+	contactHandler := NewContactHandler(cfg.DB)
 
 	// API routes
 	api := r.Group("/api")
@@ -47,6 +48,13 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 		api.POST("/applications", applicationHandler.CreateApplication)
 		api.PUT("/applications/:id", applicationHandler.UpdateApplication)
 		api.DELETE("/applications/:id", applicationHandler.DeleteApplication)
+
+		// Contact routes
+		api.GET("/contacts", contactHandler.GetAllContacts)
+		api.GET("/contacts/:id", contactHandler.GetContactByID)
+		api.POST("/contacts", contactHandler.CreateContact)
+		api.PUT("/contacts/:id", contactHandler.UpdateContact)
+		api.DELETE("/contacts/:id", contactHandler.DeleteContact)
 	}
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { applicationsAPI, jobsAPI, companiesAPI } from '../services/api'
-import type { Application, Job, Company } from '../types'
+import { applicationsAPI, jobsAPI, companiesAPI, contactsAPI } from '../services/api'
+import type { Application, Job, Company, Contact } from '../types'
 import ApplicationTable from '../components/applications/ApplicationTable'
 import ApplicationForm from '../components/applications/ApplicationForm'
 import Modal from '../components/ui/Modal'
@@ -20,6 +20,7 @@ export default function Applications() {
   const [filteredApplications, setFilteredApplications] = useState<Application[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -45,15 +46,17 @@ export default function Applications() {
       setError(null)
       
       // Fetch all data in parallel
-      const [applicationsData, jobsData, companiesData] = await Promise.all([
+      const [applicationsData, jobsData, companiesData, contactsData] = await Promise.all([
         applicationsAPI.getAll(),
         jobsAPI.getAll(),
         companiesAPI.getAll(),
+        contactsAPI.getAll(),
       ])
 
       setApplications(applicationsData)
       setJobs(jobsData)
       setCompanies(companiesData)
+      setContacts(contactsData)
       applyFilter(applicationsData, statusFilter)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch applications')
@@ -93,6 +96,7 @@ export default function Applications() {
     jobLocation?: string
     status: string
     appliedDate: string
+    contactId?: number | null
     notes?: string
   }) => {
     try {
@@ -109,6 +113,7 @@ export default function Applications() {
       const application = await applicationsAPI.create({
         status: formData.status,
         applied_date: formData.appliedDate,
+        contact_id: formData.contactId || null,
         notes: formData.notes,
       })
 
@@ -192,6 +197,7 @@ export default function Applications() {
           applications={filteredApplications}
           jobs={jobs}
           companies={companies}
+          contacts={contacts}
           emptyMessage={
             statusFilter
               ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
@@ -210,6 +216,7 @@ export default function Applications() {
           onSubmit={handleSubmit}
           onCancel={handleCloseModal}
           isLoading={isSubmitting}
+          contacts={contacts}
         />
       </Modal>
     </div>

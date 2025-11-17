@@ -37,21 +37,28 @@ func (q *Queries) CountApplicationsByStatus(ctx context.Context, status string) 
 }
 
 const createApplication = `-- name: CreateApplication :one
-INSERT INTO applications (status, applied_date, notes)
-VALUES ($1, $2, $3)
-RETURNING id, status, applied_date, notes, created_at, updated_at
+INSERT INTO applications (status, applied_date, notes, contact_id)
+VALUES ($1, $2, $3, $4)
+RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id
 `
 
 type CreateApplicationParams struct {
 	Status      string         `json:"status"`
 	AppliedDate time.Time      `json:"applied_date"`
 	Notes       sql.NullString `json:"notes"`
+	ContactID   sql.NullInt32  `json:"contact_id"`
 }
 
 // Create a new application and return the created record
 // Note: job_id is no longer needed, jobs will reference applications
+// contact_id is optional
 func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationParams) (Application, error) {
-	row := q.db.QueryRowContext(ctx, createApplication, arg.Status, arg.AppliedDate, arg.Notes)
+	row := q.db.QueryRowContext(ctx, createApplication,
+		arg.Status,
+		arg.AppliedDate,
+		arg.Notes,
+		arg.ContactID,
+	)
 	var i Application
 	err := row.Scan(
 		&i.ID,
@@ -60,6 +67,7 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ContactID,
 	)
 	return i, err
 }
@@ -76,7 +84,7 @@ func (q *Queries) DeleteApplication(ctx context.Context, id int32) error {
 }
 
 const getAllApplications = `-- name: GetAllApplications :many
-SELECT id, status, applied_date, notes, created_at, updated_at FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
 ORDER BY applied_date DESC
 `
 
@@ -97,6 +105,7 @@ func (q *Queries) GetAllApplications(ctx context.Context) ([]Application, error)
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ContactID,
 		); err != nil {
 			return nil, err
 		}
@@ -112,7 +121,7 @@ func (q *Queries) GetAllApplications(ctx context.Context) ([]Application, error)
 }
 
 const getAllApplicationsPaginated = `-- name: GetAllApplicationsPaginated :many
-SELECT id, status, applied_date, notes, created_at, updated_at FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
 ORDER BY applied_date DESC
 LIMIT $1 OFFSET $2
 `
@@ -139,6 +148,7 @@ func (q *Queries) GetAllApplicationsPaginated(ctx context.Context, arg GetAllApp
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ContactID,
 		); err != nil {
 			return nil, err
 		}
@@ -154,7 +164,7 @@ func (q *Queries) GetAllApplicationsPaginated(ctx context.Context, arg GetAllApp
 }
 
 const getApplicationByID = `-- name: GetApplicationByID :one
-SELECT id, status, applied_date, notes, created_at, updated_at FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
 WHERE id = $1
 `
 
@@ -169,12 +179,13 @@ func (q *Queries) GetApplicationByID(ctx context.Context, id int32) (Application
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ContactID,
 	)
 	return i, err
 }
 
 const getApplicationsByStatus = `-- name: GetApplicationsByStatus :many
-SELECT id, status, applied_date, notes, created_at, updated_at FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
 WHERE status = $1
 ORDER BY applied_date DESC
 `
@@ -196,6 +207,7 @@ func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ContactID,
 		); err != nil {
 			return nil, err
 		}
@@ -238,9 +250,10 @@ UPDATE applications
 SET status = $2,
     applied_date = $3,
     notes = $4,
+    contact_id = $5,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, status, applied_date, notes, created_at, updated_at
+RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id
 `
 
 type UpdateApplicationParams struct {
@@ -248,6 +261,7 @@ type UpdateApplicationParams struct {
 	Status      string         `json:"status"`
 	AppliedDate time.Time      `json:"applied_date"`
 	Notes       sql.NullString `json:"notes"`
+	ContactID   sql.NullInt32  `json:"contact_id"`
 }
 
 // Update an application and return the updated record
@@ -257,6 +271,7 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		arg.Status,
 		arg.AppliedDate,
 		arg.Notes,
+		arg.ContactID,
 	)
 	var i Application
 	err := row.Scan(
@@ -266,6 +281,7 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ContactID,
 	)
 	return i, err
 }

@@ -37,8 +37,9 @@ ORDER BY applied_date DESC;
 -- name: CreateApplication :one
 -- Create a new application and return the created record
 -- Note: job_id is no longer needed, jobs will reference applications
-INSERT INTO applications (status, applied_date, notes)
-VALUES ($1, $2, $3)
+-- contact_id is optional
+INSERT INTO applications (status, applied_date, notes, contact_id)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: UpdateApplication :one
@@ -47,6 +48,7 @@ UPDATE applications
 SET status = $2,
     applied_date = $3,
     notes = $4,
+    contact_id = $5,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
 RETURNING *;
