@@ -40,9 +40,22 @@ export default function ApplicationTable({
   }
 
   // Helper function to get contact by ID
-  const getContact = (contactId: number | null | undefined): Contact | undefined => {
+  // Handles contact_id which can be number, null, or { Int32: number, Valid: boolean }
+  const getContact = (contactId: number | null | undefined | { Int32: number; Valid: boolean }): Contact | undefined => {
     if (!contactId || !contacts) return undefined
-    return contacts.find((contact) => contact.id === contactId)
+    
+    // Handle sql.NullInt32 format: { Int32: number, Valid: boolean }
+    let actualContactId: number | null = null
+    if (typeof contactId === 'number' && contactId > 0) {
+      actualContactId = contactId
+    } else if (typeof contactId === 'object' && 'Int32' in contactId && 'Valid' in contactId) {
+      if (contactId.Valid && contactId.Int32 > 0) {
+        actualContactId = contactId.Int32
+      }
+    }
+    
+    if (!actualContactId) return undefined
+    return contacts.find((contact) => contact.id === actualContactId)
   }
 
   // Helper function to get notes text

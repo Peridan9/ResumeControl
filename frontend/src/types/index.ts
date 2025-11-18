@@ -4,6 +4,7 @@
 
 type NullString = string | null | { String: string; Valid: boolean }
 type NullTime = string | { Time: string; Valid: boolean }
+type NullInt32 = number | null | { Int32: number; Valid: boolean }
 
 export interface Company {
   id: number
@@ -27,7 +28,7 @@ export interface Job {
 
 export interface Application {
   id: number
-  contact_id?: number | null
+  contact_id?: NullInt32
   status: string
   applied_date: string
   notes: NullString

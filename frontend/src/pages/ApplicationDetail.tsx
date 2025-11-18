@@ -52,14 +52,33 @@ export default function ApplicationDetail() {
       setCompany(companyData)
 
       // Fetch contact if application has contact_id
-      if (applicationData.contact_id) {
-        try {
-          const contactData = await contactsAPI.getById(applicationData.contact_id)
-          setContact(contactData)
-        } catch (err) {
-          // Contact might not exist, ignore error
-          console.warn('Failed to fetch contact:', err)
+      // Handle contact_id which can be number, null, or { Int32: number, Valid: boolean }
+      const contactId = applicationData.contact_id
+      if (contactId !== null && contactId !== undefined) {
+        // Handle sql.NullInt32 format: { Int32: number, Valid: boolean }
+        let actualContactId: number | null = null
+        if (typeof contactId === 'number' && contactId > 0) {
+          actualContactId = contactId
+        } else if (typeof contactId === 'object' && 'Int32' in contactId && 'Valid' in contactId) {
+          if (contactId.Valid && contactId.Int32 > 0) {
+            actualContactId = contactId.Int32
+          }
         }
+        
+        if (actualContactId) {
+          try {
+            const contactData = await contactsAPI.getById(actualContactId)
+            setContact(contactData)
+          } catch (err) {
+            // Contact might not exist, ignore error
+            console.warn('Failed to fetch contact:', err)
+            setContact(null)
+          }
+        } else {
+          setContact(null)
+        }
+      } else {
+        setContact(null)
       }
 
       // Fetch all contacts for the form dropdown
@@ -157,10 +176,11 @@ export default function ApplicationDetail() {
       })
 
       // Step 3: Update application
+      // Explicitly handle contact_id: send null if not provided, otherwise send the number
       await applicationsAPI.update(application.id, {
         status: formData.status,
         applied_date: formData.appliedDate,
-        contact_id: formData.contactId || null,
+        contact_id: formData.contactId ?? null,
         notes: formData.notes,
       })
 

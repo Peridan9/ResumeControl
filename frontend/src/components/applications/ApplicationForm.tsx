@@ -124,9 +124,24 @@ export default function ApplicationForm({
   const [notes, setNotes] = useState(
     isEditMode && application ? nullStringToString(application.notes) || '' : draft?.notes || ''
   )
+  // Helper to extract contact_id from application (handles number, null, or sql.NullInt32 format)
+  const getContactIdFromApplication = (app: Application | null | undefined): string => {
+    if (!app || !app.contact_id) return ''
+    const contactId = app.contact_id
+    // Handle sql.NullInt32 format: { Int32: number, Valid: boolean }
+    if (typeof contactId === 'object' && 'Int32' in contactId && 'Valid' in contactId) {
+      return contactId.Valid && contactId.Int32 > 0 ? String(contactId.Int32) : ''
+    }
+    // Handle number format
+    if (typeof contactId === 'number' && contactId > 0) {
+      return String(contactId)
+    }
+    return ''
+  }
+
   const [contactId, setContactId] = useState<string>(
-    isEditMode && application?.contact_id
-      ? String(application.contact_id)
+    isEditMode
+      ? getContactIdFromApplication(application)
       : draft?.contactId || ''
   )
   const [error, setError] = useState<string | null>(null)
@@ -190,6 +205,15 @@ export default function ApplicationForm({
     }
 
     try {
+      // Convert contactId: empty string or invalid number should be null
+      let contactIdValue: number | null = null
+      if (contactId && contactId.trim()) {
+        const parsed = Number(contactId.trim())
+        if (!isNaN(parsed) && parsed > 0) {
+          contactIdValue = parsed
+        }
+      }
+
       await onSubmit({
         companyName: companyName.trim(),
         jobTitle: jobTitle.trim(),
@@ -198,7 +222,7 @@ export default function ApplicationForm({
         jobLocation: jobLocation.trim() || undefined,
         status,
         appliedDate,
-        contactId: contactId ? Number(contactId) : null,
+        contactId: contactIdValue,
         notes: notes.trim() || undefined,
       })
 
