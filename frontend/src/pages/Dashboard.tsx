@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { companiesAPI, jobsAPI, applicationsAPI } from '../services/api'
 import type { Application, Job, Company } from '../types'
 
@@ -29,112 +30,116 @@ interface Statistics {
   recentApplications: Array<Application & { job?: Job; company?: Company }>
 }
 
-export default function Dashboard() {
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState<Statistics>({
-    totalCompanies: 0,
-    totalApplications: 0,
-    applicationsByStatus: {},
-    applicationsThisMonth: 0,
-    applicationsThisWeek: 0,
-    applicationsToday: 0,
-    recentApplications: [],
+// Helper functions defined outside component to avoid temporal dead zone issues
+const calculateStatusBreakdown = (applications: Application[]): Record<string, number> => {
+  const breakdown: Record<string, number> = {}
+  STATUS_OPTIONS.forEach((status) => {
+    breakdown[status.value] = 0
+  })
+  applications.forEach((app) => {
+    const status = app.status.toLowerCase()
+    if (breakdown[status] !== undefined) {
+      breakdown[status]++
+    }
+  })
+  return breakdown
+}
+
+const calculateTimeBasedStats = (applications: Application[]) => {
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfWeek = new Date(startOfToday)
+  startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay()) // Start of week (Sunday)
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  let thisMonth = 0
+  let thisWeek = 0
+  let today = 0
+
+  applications.forEach((app) => {
+    const appDate = new Date(app.applied_date)
+    if (appDate >= startOfMonth) thisMonth++
+    if (appDate >= startOfWeek) thisWeek++
+    if (appDate >= startOfToday) today++
   })
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  return { thisMonth, thisWeek, today }
+}
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+const getRecentApplications = (
+  applications: Application[],
+  jobs: Job[],
+  companies: Company[],
+  limit: number
+): Array<Application & { job?: Job; company?: Company }> => {
+  // Sort by applied_date descending (most recent first)
+  const sorted = [...applications].sort((a, b) => {
+    const dateA = new Date(a.applied_date).getTime()
+    const dateB = new Date(b.applied_date).getTime()
+    return dateB - dateA
+  })
 
-      // Fetch all data in parallel
-      const [companies, jobs, applications] = await Promise.all([
-        companiesAPI.getAll(),
-        jobsAPI.getAll(),
-        applicationsAPI.getAll(),
-      ])
+  // Get top N and enrich with job and company data
+  return sorted.slice(0, limit).map((app) => {
+    const job = jobs.find((j) => j.application_id === app.id)
+    const company = job ? companies.find((c) => c.id === job.company_id) : undefined
+    return { ...app, job, company }
+  })
+}
 
-      // Calculate statistics
-      const applicationsByStatus = calculateStatusBreakdown(applications)
-      const { thisMonth, thisWeek, today } = calculateTimeBasedStats(applications)
-      const recentApplications = getRecentApplications(applications, jobs, companies, 5)
+export default function Dashboard() {
+  const navigate = useNavigate()
 
-      setStats({
-        totalCompanies: companies.length,
-        totalApplications: applications.length,
-        applicationsByStatus,
-        applicationsThisMonth: thisMonth,
-        applicationsThisWeek: thisWeek,
-        applicationsToday: today,
-        recentApplications,
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data')
-    } finally {
-      setLoading(false)
+  // Fetch all data using React Query (will use cached data if available)
+  const {
+    data: companies = [],
+    isLoading: companiesLoading,
+    error: companiesError,
+  } = useQuery<Company[]>({
+    queryKey: ['companies'],
+    queryFn: () => companiesAPI.getAll(),
+  })
+
+  const {
+    data: jobs = [],
+    isLoading: jobsLoading,
+  } = useQuery<Job[]>({
+    queryKey: ['jobs'],
+    queryFn: () => jobsAPI.getAll(),
+  })
+
+  const {
+    data: applications = [],
+    isLoading: applicationsLoading,
+    error: applicationsError,
+  } = useQuery<Application[]>({
+    queryKey: ['applications'],
+    queryFn: () => applicationsAPI.getAll(),
+  })
+
+  const loading = companiesLoading || jobsLoading || applicationsLoading
+  const error = companiesError || applicationsError
+    ? (companiesError || applicationsError) instanceof Error
+      ? (companiesError || applicationsError).message
+      : 'Failed to fetch dashboard data'
+    : null
+
+  // Calculate statistics using useMemo for performance
+  const stats = useMemo<Statistics>(() => {
+    const applicationsByStatus = calculateStatusBreakdown(applications)
+    const { thisMonth, thisWeek, today } = calculateTimeBasedStats(applications)
+    const recentApplications = getRecentApplications(applications, jobs, companies, 5)
+
+    return {
+      totalCompanies: companies.length,
+      totalApplications: applications.length,
+      applicationsByStatus,
+      applicationsThisMonth: thisMonth,
+      applicationsThisWeek: thisWeek,
+      applicationsToday: today,
+      recentApplications,
     }
-  }
-
-  const calculateStatusBreakdown = (applications: Application[]): Record<string, number> => {
-    const breakdown: Record<string, number> = {}
-    STATUS_OPTIONS.forEach((status) => {
-      breakdown[status.value] = 0
-    })
-    applications.forEach((app) => {
-      const status = app.status.toLowerCase()
-      if (breakdown[status] !== undefined) {
-        breakdown[status]++
-      }
-    })
-    return breakdown
-  }
-
-  const calculateTimeBasedStats = (applications: Application[]) => {
-    const now = new Date()
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const startOfWeek = new Date(startOfToday)
-    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay()) // Start of week (Sunday)
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-
-    let thisMonth = 0
-    let thisWeek = 0
-    let today = 0
-
-    applications.forEach((app) => {
-      const appDate = new Date(app.applied_date)
-      if (appDate >= startOfMonth) thisMonth++
-      if (appDate >= startOfWeek) thisWeek++
-      if (appDate >= startOfToday) today++
-    })
-
-    return { thisMonth, thisWeek, today }
-  }
-
-  const getRecentApplications = (
-    applications: Application[],
-    jobs: Job[],
-    companies: Company[],
-    limit: number
-  ): Array<Application & { job?: Job; company?: Company }> => {
-    // Sort by applied_date descending (most recent first)
-    const sorted = [...applications].sort((a, b) => {
-      const dateA = new Date(a.applied_date).getTime()
-      const dateB = new Date(b.applied_date).getTime()
-      return dateB - dateA
-    })
-
-    // Get top N and enrich with job and company data
-    return sorted.slice(0, limit).map((app) => {
-      const job = jobs.find((j) => j.application_id === app.id)
-      const company = job ? companies.find((c) => c.id === job.company_id) : undefined
-      return { ...app, job, company }
-    })
-  }
+  }, [applications, jobs, companies])
 
   const formatDate = (dateString: string): string => {
     try {

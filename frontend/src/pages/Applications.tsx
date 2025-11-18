@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsAPI, jobsAPI, companiesAPI, contactsAPI } from '../services/api'
 import type { Application, Job, Company, Contact } from '../types'
 import ApplicationTable from '../components/applications/ApplicationTable'
@@ -16,94 +17,87 @@ const STATUS_OPTIONS = [
 ]
 
 export default function Applications() {
-  const [applications, setApplications] = useState<Application[]>([])
-  const [filteredApplications, setFilteredApplications] = useState<Application[]>([])
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
-  // Fetch all data on component mount
-  useEffect(() => {
-    // Clear draft on page load/refresh (sessionStorage persists across refreshes)
-    // This ensures a fresh start on page refresh, but keeps draft if form is closed/reopened without refresh
-    try {
-      sessionStorage.removeItem('applicationFormDraft')
-    } catch (error) {
-      // Ignore errors (e.g., if sessionStorage is not available)
-    }
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Fetch all data in parallel
-      const [applicationsData, jobsData, companiesData, contactsData] = await Promise.all([
-        applicationsAPI.getAll(),
-        jobsAPI.getAll(),
-        companiesAPI.getAll(),
-        contactsAPI.getAll(),
-      ])
-
-      setApplications(applicationsData)
-      setJobs(jobsData)
-      setCompanies(companiesData)
-      setContacts(contactsData)
-      applyFilter(applicationsData, statusFilter)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch applications')
-    } finally {
-      setLoading(false)
-    }
+  // Clear draft on page load/refresh (sessionStorage persists across refreshes)
+  // This ensures a fresh start on page refresh, but keeps draft if form is closed/reopened without refresh
+  try {
+    sessionStorage.removeItem('applicationFormDraft')
+  } catch (error) {
+    // Ignore errors (e.g., if sessionStorage is not available)
   }
 
-  const applyFilter = (apps: Application[], filter: string) => {
-    if (!filter || filter === '') {
-      setFilteredApplications(apps)
-    } else {
-      setFilteredApplications(apps.filter((app) => app.status.toLowerCase() === filter.toLowerCase()))
-    }
-  }
+  // Fetch all data using React Query
+  const {
+    data: applications = [],
+    isLoading: applicationsLoading,
+    error: applicationsError,
+  } = useQuery<Application[]>({
+    queryKey: ['applications'],
+    queryFn: () => applicationsAPI.getAll(),
+  })
 
-  useEffect(() => {
-    if (applications.length > 0 || statusFilter) {
-      applyFilter(applications, statusFilter)
+  const {
+    data: jobs = [],
+    isLoading: jobsLoading,
+  } = useQuery<Job[]>({
+    queryKey: ['jobs'],
+    queryFn: () => jobsAPI.getAll(),
+  })
+
+  const {
+    data: companies = [],
+    isLoading: companiesLoading,
+  } = useQuery<Company[]>({
+    queryKey: ['companies'],
+    queryFn: () => companiesAPI.getAll(),
+  })
+
+  const {
+    data: contacts = [],
+    isLoading: contactsLoading,
+  } = useQuery<Contact[]>({
+    queryKey: ['contacts'],
+    queryFn: () => contactsAPI.getAll(),
+  })
+
+  // Compute filtered applications
+  const filteredApplications = useMemo(() => {
+    if (!statusFilter || statusFilter === '') {
+      return applications
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, applications])
+    return applications.filter((app) => app.status.toLowerCase() === statusFilter.toLowerCase())
+  }, [applications, statusFilter])
+
+  const loading = applicationsLoading || jobsLoading || companiesLoading || contactsLoading
+  const error = applicationsError ? (applicationsError instanceof Error ? applicationsError.message : 'Failed to fetch applications') : null
 
   const handleCreate = () => {
     setIsModalOpen(true)
+    setMutationError(null)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
   }
 
-  const handleSubmit = async (formData: {
-    companyName: string
-    jobTitle: string
-    jobDescription?: string
-    jobRequirements?: string
-    jobLocation?: string
-    status: string
-    appliedDate: string
-    contactId?: number | null
-    notes?: string
-  }) => {
-    try {
-      setIsSubmitting(true)
-      setError(null)
-      setSuccessMessage(null)
-
+  // Mutation for creating application
+  const createApplicationMutation = useMutation({
+    mutationFn: async (formData: {
+      companyName: string
+      jobTitle: string
+      jobDescription?: string
+      jobRequirements?: string
+      jobLocation?: string
+      status: string
+      appliedDate: string
+      contactId?: number | null
+      notes?: string
+    }) => {
       // Step 1: Create/get company (get-or-create pattern)
       const company = await companiesAPI.create({
         name: formData.companyName,
@@ -127,21 +121,40 @@ export default function Applications() {
         location: formData.jobLocation,
       })
 
+      return application
+    },
+    onSuccess: () => {
+      // Invalidate and refetch all related queries
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['companies'] })
+      
       setSuccessMessage('Application created successfully!')
-
-      // Refresh the data
-      await fetchData()
-
+      setMutationError(null)
+      
       // Close modal after a short delay to show success message
       setTimeout(() => {
         handleCloseModal()
         setSuccessMessage(null)
       }, 500)
-    } catch (err) {
-      throw err // Let the form handle the error
-    } finally {
-      setIsSubmitting(false)
-    }
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to create application')
+    },
+  })
+
+  const handleSubmit = async (formData: {
+    companyName: string
+    jobTitle: string
+    jobDescription?: string
+    jobRequirements?: string
+    jobLocation?: string
+    status: string
+    appliedDate: string
+    contactId?: number | null
+    notes?: string
+  }) => {
+    createApplicationMutation.mutate(formData)
   }
 
   return (
@@ -180,9 +193,9 @@ export default function Applications() {
       )}
 
       {/* Error Message */}
-      {error && (
+      {(error || mutationError) && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+          {error || mutationError}
         </div>
       )}
 
@@ -215,7 +228,7 @@ export default function Applications() {
         <ApplicationForm
           onSubmit={handleSubmit}
           onCancel={handleCloseModal}
-          isLoading={isSubmitting}
+          isLoading={createApplicationMutation.isPending}
           contacts={contacts}
         />
       </Modal>

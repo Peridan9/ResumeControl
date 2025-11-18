@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsAPI, jobsAPI, companiesAPI, contactsAPI } from '../services/api'
 import type { Application, Job, Company, Contact } from '../types'
 import { nullStringToString, nullTimeToString } from '../utils/helpers'
@@ -11,85 +12,92 @@ import ApplicationForm from '../components/applications/ApplicationForm'
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [application, setApplication] = useState<Application | null>(null)
-  const [job, setJob] = useState<Job | null>(null)
-  const [company, setCompany] = useState<Company | null>(null)
-  const [contact, setContact] = useState<Contact | null>(null)
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!id) {
-      setError('Invalid application ID')
-      setLoading(false)
-      return
+  const applicationId = id ? parseInt(id, 10) : null
+
+  // Fetch application detail
+  const {
+    data: application,
+    isLoading: applicationLoading,
+    error: applicationError,
+  } = useQuery<Application>({
+    queryKey: ['application', applicationId],
+    queryFn: () => {
+      if (!applicationId) throw new Error('Invalid application ID')
+      return applicationsAPI.getById(applicationId)
+    },
+    enabled: !!applicationId,
+  })
+
+  // Fetch job by application ID
+  const {
+    data: job,
+    isLoading: jobLoading,
+  } = useQuery<Job>({
+    queryKey: ['job', 'by-application', applicationId],
+    queryFn: () => {
+      if (!applicationId) throw new Error('Invalid application ID')
+      return applicationsAPI.getJobByApplicationId(applicationId)
+    },
+    enabled: !!applicationId && !!application,
+  })
+
+  // Fetch company
+  const {
+    data: company,
+    isLoading: companyLoading,
+  } = useQuery<Company>({
+    queryKey: ['company', job?.company_id],
+    queryFn: () => {
+      if (!job?.company_id) throw new Error('Invalid company ID')
+      return companiesAPI.getById(job.company_id)
+    },
+    enabled: !!job?.company_id,
+  })
+
+  // Extract contact ID from application
+  const contactId = useMemo(() => {
+    if (!application?.contact_id) return null
+    const cid = application.contact_id
+    if (typeof cid === 'number' && cid > 0) return cid
+    if (typeof cid === 'object' && 'Int32' in cid && 'Valid' in cid) {
+      if (cid.Valid && cid.Int32 > 0) return cid.Int32
     }
+    return null
+  }, [application?.contact_id])
 
-    fetchApplicationData(parseInt(id, 10))
-  }, [id])
+  // Fetch contact if contact_id exists
+  const {
+    data: contact,
+  } = useQuery<Contact>({
+    queryKey: ['contact', contactId],
+    queryFn: () => {
+      if (!contactId) throw new Error('Invalid contact ID')
+      return contactsAPI.getById(contactId)
+    },
+    enabled: !!contactId,
+    retry: false, // Don't retry if contact doesn't exist
+  })
 
-  const fetchApplicationData = async (applicationId: number) => {
-    try {
-      setLoading(true)
-      setError(null)
+  // Fetch all contacts for the form dropdown (uses cache if already fetched)
+  const {
+    data: contacts = [],
+  } = useQuery<Contact[]>({
+    queryKey: ['contacts'],
+    queryFn: () => contactsAPI.getAll(),
+  })
 
-      // Fetch application
-      const applicationData = await applicationsAPI.getById(applicationId)
-      setApplication(applicationData)
-
-      // Fetch job by application ID (jobs now belong to applications)
-      const jobData = await applicationsAPI.getJobByApplicationId(applicationId)
-      setJob(jobData)
-
-      // Fetch company
-      const companyData = await companiesAPI.getById(jobData.company_id)
-      setCompany(companyData)
-
-      // Fetch contact if application has contact_id
-      // Handle contact_id which can be number, null, or { Int32: number, Valid: boolean }
-      const contactId = applicationData.contact_id
-      if (contactId !== null && contactId !== undefined) {
-        // Handle sql.NullInt32 format: { Int32: number, Valid: boolean }
-        let actualContactId: number | null = null
-        if (typeof contactId === 'number' && contactId > 0) {
-          actualContactId = contactId
-        } else if (typeof contactId === 'object' && 'Int32' in contactId && 'Valid' in contactId) {
-          if (contactId.Valid && contactId.Int32 > 0) {
-            actualContactId = contactId.Int32
-          }
-        }
-        
-        if (actualContactId) {
-          try {
-            const contactData = await contactsAPI.getById(actualContactId)
-            setContact(contactData)
-          } catch (err) {
-            // Contact might not exist, ignore error
-            console.warn('Failed to fetch contact:', err)
-            setContact(null)
-          }
-        } else {
-          setContact(null)
-        }
-      } else {
-        setContact(null)
-      }
-
-      // Fetch all contacts for the form dropdown
-      const contactsData = await contactsAPI.getAll()
-      setContacts(contactsData)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch application details')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const loading = applicationLoading || jobLoading || companyLoading
+  const error = applicationError
+    ? (applicationError instanceof Error ? applicationError.message : 'Failed to fetch application details')
+    : !applicationId
+    ? 'Invalid application ID'
+    : null
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return 'N/A'
@@ -135,30 +143,27 @@ export default function ApplicationDetail() {
   const handleEdit = () => {
     setIsEditModalOpen(true)
     setSuccessMessage(null)
-    setError(null)
+    setMutationError(null)
   }
 
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false)
   }
 
-  const handleUpdate = async (formData: {
-    companyName: string
-    jobTitle: string
-    jobDescription?: string
-    jobRequirements?: string
-    jobLocation?: string
-    status: string
-    appliedDate: string
-    contactId?: number | null
-    notes?: string
-  }) => {
-    if (!application || !job || !company) return
-
-    try {
-      setIsSubmitting(true)
-      setError(null)
-      setSuccessMessage(null)
+  // Mutation for updating application
+  const updateApplicationMutation = useMutation({
+    mutationFn: async (formData: {
+      companyName: string
+      jobTitle: string
+      jobDescription?: string
+      jobRequirements?: string
+      jobLocation?: string
+      status: string
+      appliedDate: string
+      contactId?: number | null
+      notes?: string
+    }) => {
+      if (!application || !job || !company) throw new Error('Missing required data')
 
       // Step 1: Update company if name changed
       if (formData.companyName !== company.name) {
@@ -176,29 +181,72 @@ export default function ApplicationDetail() {
       })
 
       // Step 3: Update application
-      // Explicitly handle contact_id: send null if not provided, otherwise send the number
-      await applicationsAPI.update(application.id, {
+      return await applicationsAPI.update(application.id, {
         status: formData.status,
         applied_date: formData.appliedDate,
         contact_id: formData.contactId ?? null,
         notes: formData.notes,
       })
+    },
+    onSuccess: () => {
+      // Invalidate and refetch all related queries
+      queryClient.invalidateQueries({ queryKey: ['application', applicationId] })
+      queryClient.invalidateQueries({ queryKey: ['job', 'by-application', applicationId] })
+      queryClient.invalidateQueries({ queryKey: ['company', job?.company_id] })
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['companies'] })
+      if (contactId) {
+        queryClient.invalidateQueries({ queryKey: ['contact', contactId] })
+      }
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
 
       setSuccessMessage('Application updated successfully!')
-
-      // Refresh the data
-      await fetchApplicationData(application.id)
+      setMutationError(null)
 
       // Close modal after a short delay to show success message
       setTimeout(() => {
         handleCloseEditModal()
         setSuccessMessage(null)
       }, 500)
-    } catch (err) {
-      throw err
-    } finally {
-      setIsSubmitting(false)
-    }
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to update application')
+    },
+  })
+
+  // Mutation for deleting application
+  const deleteApplicationMutation = useMutation({
+    mutationFn: async () => {
+      if (!application) throw new Error('No application to delete')
+      return await applicationsAPI.delete(application.id)
+    },
+    onSuccess: () => {
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      
+      // Navigate back to applications list
+      navigate('/applications')
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to delete application')
+      setIsDeleteDialogOpen(false)
+    },
+  })
+
+  const handleUpdate = async (formData: {
+    companyName: string
+    jobTitle: string
+    jobDescription?: string
+    jobRequirements?: string
+    jobLocation?: string
+    status: string
+    appliedDate: string
+    contactId?: number | null
+    notes?: string
+  }) => {
+    updateApplicationMutation.mutate(formData)
   }
 
   const handleDeleteClick = () => {
@@ -206,22 +254,7 @@ export default function ApplicationDetail() {
   }
 
   const handleDeleteConfirm = async () => {
-    if (!application) return
-
-    try {
-      setIsDeleting(true)
-      setError(null)
-
-      await applicationsAPI.delete(application.id)
-
-      // Navigate back to applications list
-      navigate('/applications')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete application')
-      setIsDeleteDialogOpen(false)
-    } finally {
-      setIsDeleting(false)
-    }
+    deleteApplicationMutation.mutate()
   }
 
   if (loading) {
@@ -282,9 +315,9 @@ export default function ApplicationDetail() {
       )}
 
       {/* Error Message */}
-      {error && (
+      {(error || mutationError) && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+          {error || mutationError}
         </div>
       )}
 
@@ -455,7 +488,7 @@ export default function ApplicationDetail() {
           contacts={contacts}
           onSubmit={handleUpdate}
           onCancel={handleCloseEditModal}
-          isLoading={isSubmitting}
+          isLoading={updateApplicationMutation.isPending}
         />
       </Modal>
 
@@ -469,7 +502,7 @@ export default function ApplicationDetail() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
-        isLoading={isDeleting}
+        isLoading={deleteApplicationMutation.isPending}
       />
     </div>
   )

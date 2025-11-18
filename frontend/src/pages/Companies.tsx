@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesAPI } from '../services/api'
 import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../types'
 import CompanyTable from '../components/companies/CompanyTable'
@@ -7,31 +8,23 @@ import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 
 export default function Companies() {
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
-  // Fetch companies on component mount
-  useEffect(() => {
-    fetchCompanies()
-  }, [])
+  // Fetch companies using React Query
+  const {
+    data: companies = [],
+    isLoading: loading,
+    error: companiesError,
+  } = useQuery<Company[]>({
+    queryKey: ['companies'],
+    queryFn: () => companiesAPI.getAll(),
+  })
 
-  const fetchCompanies = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await companiesAPI.getAll()
-      setCompanies(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch companies')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const error = companiesError ? (companiesError instanceof Error ? companiesError.message : 'Failed to fetch companies') : null
 
   const handleCreate = () => {
     setEditingCompany(null)
@@ -48,56 +41,66 @@ export default function Companies() {
     setEditingCompany(null)
   }
 
-  const handleSubmit = async (data: CreateCompanyRequest | UpdateCompanyRequest) => {
-    try {
-      setIsSubmitting(true)
-      setError(null)
-      setSuccessMessage(null)
-
-      if (editingCompany) {
+  // Mutation for creating/updating company
+  const saveCompanyMutation = useMutation({
+    mutationFn: async (data: { company: Company | null; formData: CreateCompanyRequest | UpdateCompanyRequest }) => {
+      if (data.company) {
         // Update existing company
-        await companiesAPI.update(editingCompany.id, data as UpdateCompanyRequest)
-        setSuccessMessage('Company updated successfully!')
+        return await companiesAPI.update(data.company.id, data.formData as UpdateCompanyRequest)
       } else {
         // Create new company
-        await companiesAPI.create(data as CreateCompanyRequest)
-        setSuccessMessage('Company created successfully!')
+        return await companiesAPI.create(data.formData as CreateCompanyRequest)
       }
-
-      // Refresh the list
-      await fetchCompanies()
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate and refetch companies
+      queryClient.invalidateQueries({ queryKey: ['companies'] })
+      
+      setSuccessMessage(variables.company ? 'Company updated successfully!' : 'Company created successfully!')
+      setMutationError(null)
       
       // Close modal after a short delay to show success message
       setTimeout(() => {
         handleCloseModal()
         setSuccessMessage(null)
       }, 500)
-    } catch (err) {
-      throw err // Let the form handle the error
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to save company')
+    },
+  })
 
-  const handleDelete = async (id: number) => {
-    try {
-      setError(null)
-      await companiesAPI.delete(id)
-      setSuccessMessage('Company deleted successfully!')
+  // Mutation for deleting company
+  const deleteCompanyMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await companiesAPI.delete(id)
+    },
+    onSuccess: () => {
+      // Invalidate and refetch companies
+      queryClient.invalidateQueries({ queryKey: ['companies'] })
       
-      // Refresh the list
-      await fetchCompanies()
+      setSuccessMessage('Company deleted successfully!')
+      setMutationError(null)
       
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccessMessage(null)
       }, 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete company')
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to delete company')
       setTimeout(() => {
-        setError(null)
+        setMutationError(null)
       }, 5000)
-    }
+    },
+  })
+
+  const handleSubmit = async (data: CreateCompanyRequest | UpdateCompanyRequest) => {
+    saveCompanyMutation.mutate({ company: editingCompany, formData: data })
+  }
+
+  const handleDelete = async (id: number) => {
+    deleteCompanyMutation.mutate(id)
   }
 
   return (
@@ -117,9 +120,9 @@ export default function Companies() {
       )}
 
       {/* Error Message */}
-      {error && (
+      {(error || mutationError) && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+          {error || mutationError}
         </div>
       )}
 
@@ -146,7 +149,7 @@ export default function Companies() {
           company={editingCompany}
           onSubmit={handleSubmit}
           onCancel={handleCloseModal}
-          isLoading={isSubmitting}
+          isLoading={saveCompanyMutation.isPending}
         />
       </Modal>
     </div>

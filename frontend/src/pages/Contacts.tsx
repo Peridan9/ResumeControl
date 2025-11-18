@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contactsAPI } from '../services/api'
 import type { Contact, CreateContactRequest, UpdateContactRequest } from '../types'
 import ContactTable from '../components/contacts/ContactTable'
@@ -7,32 +8,23 @@ import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 
 export default function Contacts() {
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
-  // Fetch contacts on component mount
-  useEffect(() => {
-    fetchContacts()
-  }, [])
+  // Fetch contacts using React Query
+  const {
+    data: contacts = [],
+    isLoading: loading,
+    error: contactsError,
+  } = useQuery<Contact[]>({
+    queryKey: ['contacts'],
+    queryFn: () => contactsAPI.getAll(),
+  })
 
-  const fetchContacts = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await contactsAPI.getAll()
-      setContacts(data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch contacts')
-      setContacts([]) // Set to empty array on error
-    } finally {
-      setLoading(false)
-    }
-  }
+  const error = contactsError ? (contactsError instanceof Error ? contactsError.message : 'Failed to fetch contacts') : null
 
   const handleCreate = () => {
     setEditingContact(null)
@@ -49,53 +41,66 @@ export default function Contacts() {
     setEditingContact(null)
   }
 
-  const handleSubmit = async (data: CreateContactRequest | UpdateContactRequest) => {
-    try {
-      setIsSubmitting(true)
-      setError(null)
-
-      if (editingContact) {
+  // Mutation for creating/updating contact
+  const saveContactMutation = useMutation({
+    mutationFn: async (data: { contact: Contact | null; formData: CreateContactRequest | UpdateContactRequest }) => {
+      if (data.contact) {
         // Update existing contact
-        await contactsAPI.update(editingContact.id, data as UpdateContactRequest)
-        setSuccessMessage('Contact updated successfully!')
+        return await contactsAPI.update(data.contact.id, data.formData as UpdateContactRequest)
       } else {
         // Create new contact
-        await contactsAPI.create(data as CreateContactRequest)
-        setSuccessMessage('Contact created successfully!')
+        return await contactsAPI.create(data.formData as CreateContactRequest)
       }
-
-      // Refresh contacts list
-      await fetchContacts()
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate and refetch contacts
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      
+      setSuccessMessage(variables.contact ? 'Contact updated successfully!' : 'Contact created successfully!')
+      setMutationError(null)
       handleCloseModal()
 
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccessMessage(null)
       }, 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save contact')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to save contact')
+    },
+  })
 
-  const handleDelete = async (id: number) => {
-    try {
-      setError(null)
-      await contactsAPI.delete(id)
+  // Mutation for deleting contact
+  const deleteContactMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await contactsAPI.delete(id)
+    },
+    onSuccess: () => {
+      // Invalidate and refetch contacts
+      queryClient.invalidateQueries({ queryKey: ['contacts'] })
+      
       setSuccessMessage('Contact deleted successfully!')
-      await fetchContacts()
+      setMutationError(null)
 
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccessMessage(null)
       }, 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete contact')
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to delete contact')
       setTimeout(() => {
-        setError(null)
+        setMutationError(null)
       }, 5000)
-    }
+    },
+  })
+
+  const handleSubmit = async (data: CreateContactRequest | UpdateContactRequest) => {
+    saveContactMutation.mutate({ contact: editingContact, formData: data })
+  }
+
+  const handleDelete = async (id: number) => {
+    deleteContactMutation.mutate(id)
   }
 
   return (
@@ -115,9 +120,9 @@ export default function Contacts() {
       )}
 
       {/* Error Message */}
-      {error && (
+      {(error || mutationError) && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+          {error || mutationError}
         </div>
       )}
 
@@ -144,7 +149,7 @@ export default function Contacts() {
           contact={editingContact}
           onSubmit={handleSubmit}
           onCancel={handleCloseModal}
-          isLoading={isSubmitting}
+          isLoading={saveContactMutation.isPending}
         />
       </Modal>
     </div>
