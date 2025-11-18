@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { contactsAPI } from '../services/api'
 import type { Contact, CreateContactRequest, UpdateContactRequest } from '../types'
-import ContactCard from '../components/contacts/ContactCard'
+import ContactTable from '../components/contacts/ContactTable'
 import ContactForm from '../components/contacts/ContactForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
@@ -121,31 +121,18 @@ export default function Contacts() {
         </div>
       )}
 
-      {/* Loading State */}
-      {loading ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading contacts...</p>
-        </div>
-      ) : !contacts || contacts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-600 mb-4">No contacts found.</p>
-          <Button variant="primary" onClick={handleCreate}>
-            Create Your First Contact
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {contacts.map((contact) => (
-            <ContactCard
-              key={contact.id}
-              contact={contact}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
+      {/* Contacts Table */}
+      <ContactTable
+        contacts={contacts}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        emptyMessage={
+          (!contacts || contacts.length === 0) && !loading
+            ? 'No contacts found. Create your first contact to get started.'
+            : 'No contacts found.'
+        }
+        loading={loading}
+      />
 
       {/* Create/Edit Modal */}
       <Modal
