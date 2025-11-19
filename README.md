@@ -8,6 +8,8 @@ A job application management system to track job applications, manage resumes, a
 
 ResumeControl helps you organize your job search by tracking applications, managing company information, and storing contact details. The system provides a dashboard with statistics and filtering capabilities to keep your job search organized.
 
+**Development:** This project is being developed in [Cursor](https://cursor.sh/) with tasks and problems tracked in [Linear](https://linear.app/).
+
 ## Technologies
 
 ### Backend
