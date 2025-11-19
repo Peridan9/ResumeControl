@@ -55,6 +55,9 @@ export default function ApplicationForm({
   isLoading = false,
 }: ApplicationFormProps) {
   const isEditMode = !!application
+  
+  // Ensure contacts is always an array (handle null/undefined from React Query)
+  const safeContacts = contacts || []
 
   // Helper to get default date
   const getDefaultDate = () => {
@@ -390,7 +393,7 @@ export default function ApplicationForm({
           disabled={isLoading}
         >
           <option value="">No contact</option>
-          {contacts.map((contact) => (
+          {safeContacts.map((contact) => (
             <option key={contact.id} value={contact.id}>
               {contact.name}
             </option>

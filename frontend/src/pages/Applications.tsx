@@ -229,7 +229,7 @@ export default function Applications() {
           onSubmit={handleSubmit}
           onCancel={handleCloseModal}
           isLoading={createApplicationMutation.isPending}
-          contacts={contacts}
+          contacts={contacts || []}
         />
       </Modal>
     </div>
