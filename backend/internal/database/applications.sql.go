@@ -222,6 +222,51 @@ func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([
 	return items, nil
 }
 
+const getApplicationsByStatusPaginated = `-- name: GetApplicationsByStatusPaginated :many
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
+WHERE status = $1
+ORDER BY applied_date DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetApplicationsByStatusPaginatedParams struct {
+	Status string `json:"status"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+// Get paginated applications with a specific status
+func (q *Queries) GetApplicationsByStatusPaginated(ctx context.Context, arg GetApplicationsByStatusPaginatedParams) ([]Application, error) {
+	rows, err := q.db.QueryContext(ctx, getApplicationsByStatusPaginated, arg.Status, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Application
+	for rows.Next() {
+		var i Application
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.AppliedDate,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ContactID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getJobByApplicationID = `-- name: GetJobByApplicationID :one
 SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
 WHERE application_id = $1
