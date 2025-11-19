@@ -34,6 +34,13 @@ SELECT * FROM applications
 WHERE status = $1
 ORDER BY applied_date DESC;
 
+-- name: GetApplicationsByStatusPaginated :many
+-- Get paginated applications with a specific status
+SELECT * FROM applications
+WHERE status = $1
+ORDER BY applied_date DESC
+LIMIT $2 OFFSET $3;
+
 -- name: CreateApplication :one
 -- Create a new application and return the created record
 -- Note: job_id is no longer needed, jobs will reference applications

@@ -58,31 +58,24 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 	params := ParsePaginationParams(c)
 	offset := CalculateOffset(params.Page, params.Limit)
 
-	// For now, if status is provided with pagination, we'll return paginated all
-	// TODO: Add paginated status filter query if needed
+	// If status is provided with pagination, use database-level pagination (efficient!)
 	if status != "" {
-		// Get all filtered applications (we'll paginate in memory for now)
-		// This is not ideal for large datasets, but maintains backward compatibility
-		allApplications, err := h.queries.GetApplicationsByStatus(ctx, status)
+		// Fetch paginated applications with status filter (database handles pagination)
+		applications, err := h.queries.GetApplicationsByStatusPaginated(ctx, database.GetApplicationsByStatusPaginatedParams{
+			Status: status,
+			Limit:  params.Limit,
+			Offset: offset,
+		})
 		if err != nil {
 			sendInternalError(c, "Failed to fetch applications", err)
 			return
 		}
 
-		// Manual pagination in memory
-		totalCount := int64(len(allApplications))
-		start := int(offset)
-		end := start + int(params.Limit)
-		if start > len(allApplications) {
-			start = len(allApplications)
-		}
-		if end > len(allApplications) {
-			end = len(allApplications)
-		}
-
-		var applications []database.Application
-		if start < len(allApplications) {
-			applications = allApplications[start:end]
+		// Fetch total count for pagination metadata
+		totalCount, err := h.queries.CountApplicationsByStatus(ctx, status)
+		if err != nil {
+			sendInternalError(c, "Failed to count applications", err)
+			return
 		}
 
 		// Convert to interface{} for paginated response
