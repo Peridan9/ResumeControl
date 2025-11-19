@@ -7,10 +7,13 @@ import {
   ClockIcon,
   UserIcon,
   DocumentTextIcon,
+  PencilIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline'
 import type { Application, Job, Company, Contact } from '../../types'
 import { nullTimeToString, nullStringToString } from '../../utils/helpers'
 import Tooltip from '../ui/Tooltip'
+import DataTable, { Column } from '../ui/DataTable'
 
 interface ApplicationTableProps {
   applications: Application[]
@@ -18,7 +21,22 @@ interface ApplicationTableProps {
   companies: Company[]
   contacts?: Contact[] | null
   emptyMessage?: string
+  loading?: boolean
+  statusFilter?: string
+  onStatusFilterChange?: (status: string) => void
+  onEdit?: (application: Application) => void
+  onDelete?: (id: number) => void
 }
+
+export const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'offer', label: 'Offer' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'accepted', label: 'Accepted' },
+]
 
 export default function ApplicationTable({
   applications,
@@ -26,8 +44,19 @@ export default function ApplicationTable({
   companies,
   contacts = [],
   emptyMessage = 'No applications found',
+  loading = false,
+  statusFilter = '',
+  onStatusFilterChange,
+  onEdit,
+  onDelete,
 }: ApplicationTableProps) {
   const navigate = useNavigate()
+
+  const handleDelete = (application: Application) => {
+    if (onDelete && window.confirm(`Are you sure you want to delete this application?`)) {
+      onDelete(application.id)
+    }
+  }
 
   // Helper function to get job by application ID
   const getJob = (applicationId: number): Job | undefined => {
@@ -63,8 +92,8 @@ export default function ApplicationTable({
     return nullStringToString(notes)
   }
 
-  const handleRowClick = (applicationId: number) => {
-    navigate(`/applications/${applicationId}`)
+  const handleRowClick = (application: Application) => {
+    navigate(`/applications/${application.id}`)
   }
 
   // Helper function to format date
@@ -91,112 +120,200 @@ export default function ApplicationTable({
     return formatDate(timeStr)
   }
 
-  if (!applications || applications.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow p-12 text-center">
-        <p className="text-gray-600">{emptyMessage}</p>
-      </div>
-    )
+  // Helper function to get status badge color
+  const getStatusBadgeColor = (status: string): string => {
+    const statusColors: Record<string, string> = {
+      applied: 'bg-blue-100 text-blue-800',
+      interview: 'bg-yellow-100 text-yellow-800',
+      offer: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+      withdrawn: 'bg-gray-100 text-gray-800',
+      accepted: 'bg-green-100 text-green-800',
+    }
+    return statusColors[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
   }
 
-  return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <BuildingOfficeIcon className="w-4 h-4" />
-                  <span>Company</span>
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <BriefcaseIcon className="w-4 h-4" />
-                  <span>Position</span>
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <CheckCircleIcon className="w-4 h-4" />
-                  <span>Status</span>
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <CalendarIcon className="w-4 h-4" />
-                  <span>Applied Date</span>
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <ClockIcon className="w-4 h-4" />
-                  <span>Last Updated</span>
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <UserIcon className="w-4 h-4" />
-                  <span>Contact</span>
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="flex items-center space-x-1">
-                  <DocumentTextIcon className="w-4 h-4" />
-                  <span>Notes</span>
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {applications?.map((application) => {
-              const job = getJob(application.id)
-              const company = job ? getCompany(job.company_id) : undefined
-              const contact = getContact(application.contact_id)
-              const notesText = getNotesText(application.notes)
-              const hasNotes = notesText && notesText.trim() !== ''
+  const columns: Column<Application>[] = [
+    {
+      key: 'company',
+      header: (
+        <div className="flex items-center space-x-1">
+          <BuildingOfficeIcon className="w-4 h-4" />
+          <span>Company</span>
+        </div>
+      ),
+      render: (application) => {
+        const job = getJob(application.id)
+        const company = job ? getCompany(job.company_id) : undefined
+        return (
+          <span className="font-medium text-gray-900 whitespace-nowrap">
+            {company?.name || 'Unknown Company'}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'position',
+      header: (
+        <div className="flex items-center space-x-1">
+          <BriefcaseIcon className="w-4 h-4" />
+          <span>Position</span>
+        </div>
+      ),
+      render: (application) => {
+        const job = getJob(application.id)
+        return (
+          <div className="max-w-[200px] truncate" title={job?.title || 'Unknown Job'}>
+            <span className="text-gray-900">{job?.title || 'Unknown Job'}</span>
+          </div>
+        )
+      },
+      className: 'max-w-[200px]',
+    },
+    {
+      key: 'status',
+      header: (
+        <div className="flex items-center space-x-1">
+          <CheckCircleIcon className="w-4 h-4" />
+          <span>Status</span>
+        </div>
+      ),
+      render: (application) => (
+        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadgeColor(application.status)}`}>
+          {application.status}
+        </span>
+      ),
+    },
+    {
+      key: 'appliedDate',
+      header: (
+        <div className="flex items-center space-x-1">
+          <CalendarIcon className="w-4 h-4" />
+          <span>Applied Date</span>
+        </div>
+      ),
+      render: (application) => (
+        <span className="text-gray-600 whitespace-nowrap">{formatDate(application.applied_date)}</span>
+      ),
+    },
+    {
+      key: 'lastUpdated',
+      header: (
+        <div className="flex items-center space-x-1">
+          <ClockIcon className="w-4 h-4" />
+          <span>Last Updated</span>
+        </div>
+      ),
+      render: (application) => (
+        <span className="text-gray-600 whitespace-nowrap">{formatNullTime(application.updated_at)}</span>
+      ),
+    },
+    {
+      key: 'contact',
+      header: (
+        <div className="flex items-center space-x-1">
+          <UserIcon className="w-4 h-4" />
+          <span>Contact</span>
+        </div>
+      ),
+      render: (application) => {
+        const contact = getContact(application.contact_id)
+        return contact?.name || <span className="text-gray-300">—</span>
+      },
+    },
+    {
+      key: 'notes',
+      header: (
+        <div className="flex items-center space-x-1">
+          <DocumentTextIcon className="w-4 h-4" />
+          <span>Notes</span>
+        </div>
+      ),
+      render: (application) => {
+        const notesText = getNotesText(application.notes)
+        const hasNotes = notesText && notesText.trim() !== ''
+        return hasNotes ? (
+          <Tooltip content={notesText} position="left" maxWidth="max">
+            <DocumentTextIcon className="w-5 h-5 text-gray-500 hover:text-gray-700 cursor-pointer" />
+          </Tooltip>
+        ) : (
+          <span className="text-gray-300">—</span>
+        )
+      },
+    },
+    ...(onEdit || onDelete
+      ? [
+          {
+            key: 'actions',
+            header: <span>Actions</span>,
+            render: (application: Application) => (
+              <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(application)}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit application"
+                    aria-label="Edit application"
+                  >
+                    <PencilIcon className="w-5 h-5" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => handleDelete(application)}
+                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete application"
+                    aria-label="Delete application"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            ),
+            className: 'text-right',
+          } as Column<Application>,
+        ]
+      : []),
+  ]
 
-              return (
-                <tr
-                  key={application.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => handleRowClick(application.id)}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {company?.name || 'Unknown Company'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {job?.title || 'Unknown Job'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {application.status}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(application.applied_date)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatNullTime(application.updated_at)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {contact?.name || <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {hasNotes ? (
-                      <Tooltip content={notesText} position="left" maxWidth="max">
-                        <DocumentTextIcon className="w-5 h-5 text-gray-500 hover:text-gray-700 cursor-pointer" />
-                      </Tooltip>
-                    ) : (
-                      <span className="text-gray-300">—</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+  // Filter content for DataTable
+  const filterContent = onStatusFilterChange ? (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-1">
+          Filter by Status
+        </label>
+        <select
+          id="statusFilter"
+          value={statusFilter}
+          onChange={(e) => onStatusFilterChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
+      {statusFilter && (
+        <p className="text-sm text-gray-600">
+          Showing {applications.length} application{applications.length !== 1 ? 's' : ''} with status "{STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}"
+        </p>
+      )}
     </div>
+  ) : undefined
+
+  return (
+    <DataTable
+      data={applications}
+      columns={columns}
+      emptyMessage={emptyMessage}
+      rowKey={(application) => application.id}
+      loading={loading}
+      onRowClick={handleRowClick}
+      filter={filterContent}
+      filterLabel="Filter Applications"
+    />
   )
 }
-
