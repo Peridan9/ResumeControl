@@ -17,19 +17,8 @@ UPDATE contacts
 SET user_id = 1
 WHERE user_id IS NULL;
 
--- Verify no NULL values remain (this will fail the migration if any NULLs exist)
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM companies WHERE user_id IS NULL) THEN
-        RAISE EXCEPTION 'Migration failed: companies table still has NULL user_id values';
-    END IF;
-    IF EXISTS (SELECT 1 FROM applications WHERE user_id IS NULL) THEN
-        RAISE EXCEPTION 'Migration failed: applications table still has NULL user_id values';
-    END IF;
-    IF EXISTS (SELECT 1 FROM contacts WHERE user_id IS NULL) THEN
-        RAISE EXCEPTION 'Migration failed: contacts table still has NULL user_id values';
-    END IF;
-END $$;
+-- Note: Validation is not needed here as migration 011 will fail if any NULL values remain
+-- when trying to set NOT NULL constraint
 
 -- +goose Down
 -- Set user_id back to NULL (for rollback)

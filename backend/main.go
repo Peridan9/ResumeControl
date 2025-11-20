@@ -9,6 +9,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
 	"github.com/peridan9/resumecontrol/backend/internal/handlers"
 	_ "github.com/lib/pq" // PostgreSQL driver (imported for side effects)
@@ -46,6 +47,12 @@ func main() {
 		log.Fatalf("❌ Failed to ping database: %v", err)
 	}
 	log.Println("✅ Successfully connected to database!")
+
+	// Initialize JWT authentication
+	if err := auth.InitJWT(); err != nil {
+		log.Fatalf("❌ Failed to initialize JWT: %v", err)
+	}
+	log.Println("✅ JWT authentication initialized!")
 
 	// Set Gin mode based on environment
 	env := os.Getenv("ENV")
