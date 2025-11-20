@@ -39,7 +39,7 @@ func (q *Queries) CountApplicationsByStatus(ctx context.Context, status string) 
 const createApplication = `-- name: CreateApplication :one
 INSERT INTO applications (status, applied_date, notes, contact_id)
 VALUES ($1, $2, $3, $4)
-RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id
+RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id, user_id
 `
 
 type CreateApplicationParams struct {
@@ -68,6 +68,7 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContactID,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -84,7 +85,7 @@ func (q *Queries) DeleteApplication(ctx context.Context, id int32) error {
 }
 
 const getAllApplications = `-- name: GetAllApplications :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 ORDER BY applied_date DESC
 `
 
@@ -106,6 +107,7 @@ func (q *Queries) GetAllApplications(ctx context.Context) ([]Application, error)
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ContactID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -121,7 +123,7 @@ func (q *Queries) GetAllApplications(ctx context.Context) ([]Application, error)
 }
 
 const getAllApplicationsPaginated = `-- name: GetAllApplicationsPaginated :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 ORDER BY applied_date DESC
 LIMIT $1 OFFSET $2
 `
@@ -149,6 +151,7 @@ func (q *Queries) GetAllApplicationsPaginated(ctx context.Context, arg GetAllApp
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ContactID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -164,7 +167,7 @@ func (q *Queries) GetAllApplicationsPaginated(ctx context.Context, arg GetAllApp
 }
 
 const getApplicationByID = `-- name: GetApplicationByID :one
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE id = $1
 `
 
@@ -180,12 +183,13 @@ func (q *Queries) GetApplicationByID(ctx context.Context, id int32) (Application
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContactID,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const getApplicationsByStatus = `-- name: GetApplicationsByStatus :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE status = $1
 ORDER BY applied_date DESC
 `
@@ -208,6 +212,7 @@ func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ContactID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -223,7 +228,7 @@ func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([
 }
 
 const getApplicationsByStatusPaginated = `-- name: GetApplicationsByStatusPaginated :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE status = $1
 ORDER BY applied_date DESC
 LIMIT $2 OFFSET $3
@@ -253,6 +258,7 @@ func (q *Queries) GetApplicationsByStatusPaginated(ctx context.Context, arg GetA
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ContactID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -298,7 +304,7 @@ SET status = $2,
     contact_id = $5,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id
+RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id, user_id
 `
 
 type UpdateApplicationParams struct {
@@ -327,6 +333,7 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContactID,
+		&i.UserID,
 	)
 	return i, err
 }

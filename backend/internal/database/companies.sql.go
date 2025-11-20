@@ -25,7 +25,7 @@ func (q *Queries) CountCompanies(ctx context.Context) (int64, error) {
 const createCompany = `-- name: CreateCompany :one
 INSERT INTO companies (name, website)
 VALUES ($1, $2)
-RETURNING id, name, website, created_at, updated_at
+RETURNING id, name, website, created_at, updated_at, user_id
 `
 
 type CreateCompanyParams struct {
@@ -43,6 +43,7 @@ func (q *Queries) CreateCompany(ctx context.Context, arg CreateCompanyParams) (C
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -59,7 +60,7 @@ func (q *Queries) DeleteCompany(ctx context.Context, id int32) error {
 }
 
 const getAllCompanies = `-- name: GetAllCompanies :many
-SELECT id, name, website, created_at, updated_at FROM companies
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
 ORDER BY name ASC
 `
 
@@ -79,6 +80,7 @@ func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
 			&i.Website,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -94,7 +96,7 @@ func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
 }
 
 const getAllCompaniesPaginated = `-- name: GetAllCompaniesPaginated :many
-SELECT id, name, website, created_at, updated_at FROM companies
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
 ORDER BY name ASC
 LIMIT $1 OFFSET $2
 `
@@ -120,6 +122,7 @@ func (q *Queries) GetAllCompaniesPaginated(ctx context.Context, arg GetAllCompan
 			&i.Website,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -135,7 +138,7 @@ func (q *Queries) GetAllCompaniesPaginated(ctx context.Context, arg GetAllCompan
 }
 
 const getCompanyByID = `-- name: GetCompanyByID :one
-SELECT id, name, website, created_at, updated_at FROM companies
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
 WHERE id = $1
 `
 
@@ -149,12 +152,13 @@ func (q *Queries) GetCompanyByID(ctx context.Context, id int32) (Company, error)
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const getCompanyByName = `-- name: GetCompanyByName :one
-SELECT id, name, website, created_at, updated_at FROM companies
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
 WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
 LIMIT 1
 `
@@ -170,6 +174,7 @@ func (q *Queries) GetCompanyByName(ctx context.Context, btrim string) (Company, 
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -180,7 +185,7 @@ SET name = $2,
     website = $3,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, name, website, created_at, updated_at
+RETURNING id, name, website, created_at, updated_at, user_id
 `
 
 type UpdateCompanyParams struct {
@@ -199,6 +204,7 @@ func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (C
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }

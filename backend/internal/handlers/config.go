@@ -17,10 +17,13 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 	jobHandler := NewJobHandler(cfg.DB)
 	applicationHandler := NewApplicationHandler(cfg.DB)
 	contactHandler := NewContactHandler(cfg.DB)
+	userHandler := NewUserHandler(cfg.DB)
 
 	// API routes
 	api := r.Group("/api")
 	{
+		// Auth routes (public - no authentication required)
+		api.POST("/auth/register", userHandler.Register)
 		// Company routes
 		api.GET("/companies", companyHandler.GetAllCompanies)
 		// Nested route: Get jobs by company (must be before /companies/:id)

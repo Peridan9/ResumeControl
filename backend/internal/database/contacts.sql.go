@@ -13,7 +13,7 @@ import (
 const createContact = `-- name: CreateContact :one
 INSERT INTO contacts (name, email, phone, linkedin)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, email, phone, linkedin, created_at, updated_at
+RETURNING id, name, email, phone, linkedin, created_at, updated_at, user_id
 `
 
 type CreateContactParams struct {
@@ -40,6 +40,7 @@ func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (C
 		&i.Linkedin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -55,7 +56,7 @@ func (q *Queries) DeleteContact(ctx context.Context, id int32) error {
 }
 
 const getAllContacts = `-- name: GetAllContacts :many
-SELECT id, name, email, phone, linkedin, created_at, updated_at FROM contacts ORDER BY name ASC
+SELECT id, name, email, phone, linkedin, created_at, updated_at, user_id FROM contacts ORDER BY name ASC
 `
 
 // Get all contacts ordered by name
@@ -76,6 +77,7 @@ func (q *Queries) GetAllContacts(ctx context.Context) ([]Contact, error) {
 			&i.Linkedin,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -91,7 +93,7 @@ func (q *Queries) GetAllContacts(ctx context.Context) ([]Contact, error) {
 }
 
 const getContactByID = `-- name: GetContactByID :one
-SELECT id, name, email, phone, linkedin, created_at, updated_at FROM contacts WHERE id = $1
+SELECT id, name, email, phone, linkedin, created_at, updated_at, user_id FROM contacts WHERE id = $1
 `
 
 // Get a contact by ID
@@ -106,6 +108,7 @@ func (q *Queries) GetContactByID(ctx context.Context, id int32) (Contact, error)
 		&i.Linkedin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -118,7 +121,7 @@ SET name = $2,
     linkedin = $5,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, name, email, phone, linkedin, created_at, updated_at
+RETURNING id, name, email, phone, linkedin, created_at, updated_at, user_id
 `
 
 type UpdateContactParams struct {
@@ -147,6 +150,7 @@ func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (C
 		&i.Linkedin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
