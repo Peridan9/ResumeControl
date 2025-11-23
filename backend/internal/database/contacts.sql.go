@@ -11,8 +11,8 @@ import (
 )
 
 const createContact = `-- name: CreateContact :one
-INSERT INTO contacts (name, email, phone, linkedin)
-VALUES ($1, $2, $3, $4)
+INSERT INTO contacts (name, email, phone, linkedin, user_id)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id, name, email, phone, linkedin, created_at, updated_at, user_id
 `
 
@@ -21,6 +21,7 @@ type CreateContactParams struct {
 	Email    sql.NullString `json:"email"`
 	Phone    sql.NullString `json:"phone"`
 	Linkedin sql.NullString `json:"linkedin"`
+	UserID   int32          `json:"user_id"`
 }
 
 // Create a new contact and return the created record
@@ -30,6 +31,7 @@ func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (C
 		arg.Email,
 		arg.Phone,
 		arg.Linkedin,
+		arg.UserID,
 	)
 	var i Contact
 	err := row.Scan(
@@ -46,22 +48,57 @@ func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (C
 }
 
 const deleteContact = `-- name: DeleteContact :exec
-DELETE FROM contacts WHERE id = $1
+DELETE FROM contacts
+WHERE id = $1 AND user_id = $2
 `
 
-// Delete a contact by ID
-func (q *Queries) DeleteContact(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteContact, id)
+type DeleteContactParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// Delete a contact by ID (verifies ownership via user_id)
+func (q *Queries) DeleteContact(ctx context.Context, arg DeleteContactParams) error {
+	_, err := q.db.ExecContext(ctx, deleteContact, arg.ID, arg.UserID)
 	return err
 }
 
-const getAllContacts = `-- name: GetAllContacts :many
-SELECT id, name, email, phone, linkedin, created_at, updated_at, user_id FROM contacts ORDER BY name ASC
+const getContactByIDAndUserID = `-- name: GetContactByIDAndUserID :one
+SELECT id, name, email, phone, linkedin, created_at, updated_at, user_id FROM contacts
+WHERE id = $1 AND user_id = $2
 `
 
-// Get all contacts ordered by name
-func (q *Queries) GetAllContacts(ctx context.Context) ([]Contact, error) {
-	rows, err := q.db.QueryContext(ctx, getAllContacts)
+type GetContactByIDAndUserIDParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// Get a contact by ID and user_id (ownership verification)
+func (q *Queries) GetContactByIDAndUserID(ctx context.Context, arg GetContactByIDAndUserIDParams) (Contact, error) {
+	row := q.db.QueryRowContext(ctx, getContactByIDAndUserID, arg.ID, arg.UserID)
+	var i Contact
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Phone,
+		&i.Linkedin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const getContactsByUserID = `-- name: GetContactsByUserID :many
+SELECT id, name, email, phone, linkedin, created_at, updated_at, user_id FROM contacts
+WHERE user_id = $1
+ORDER BY name ASC
+`
+
+// Get all contacts for a specific user, ordered by name
+func (q *Queries) GetContactsByUserID(ctx context.Context, userID int32) ([]Contact, error) {
+	rows, err := q.db.QueryContext(ctx, getContactsByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,27 +129,6 @@ func (q *Queries) GetAllContacts(ctx context.Context) ([]Contact, error) {
 	return items, nil
 }
 
-const getContactByID = `-- name: GetContactByID :one
-SELECT id, name, email, phone, linkedin, created_at, updated_at, user_id FROM contacts WHERE id = $1
-`
-
-// Get a contact by ID
-func (q *Queries) GetContactByID(ctx context.Context, id int32) (Contact, error) {
-	row := q.db.QueryRowContext(ctx, getContactByID, id)
-	var i Contact
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.Phone,
-		&i.Linkedin,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.UserID,
-	)
-	return i, err
-}
-
 const updateContact = `-- name: UpdateContact :one
 UPDATE contacts
 SET name = $2,
@@ -120,7 +136,7 @@ SET name = $2,
     phone = $4,
     linkedin = $5,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE id = $1 AND user_id = $6
 RETURNING id, name, email, phone, linkedin, created_at, updated_at, user_id
 `
 
@@ -130,9 +146,10 @@ type UpdateContactParams struct {
 	Email    sql.NullString `json:"email"`
 	Phone    sql.NullString `json:"phone"`
 	Linkedin sql.NullString `json:"linkedin"`
+	UserID   int32          `json:"user_id"`
 }
 
-// Update a contact and return the updated record
+// Update a contact and return the updated record (verifies ownership via user_id)
 func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (Contact, error) {
 	row := q.db.QueryRowContext(ctx, updateContact,
 		arg.ID,
@@ -140,6 +157,7 @@ func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (C
 		arg.Email,
 		arg.Phone,
 		arg.Linkedin,
+		arg.UserID,
 	)
 	var i Contact
 	err := row.Scan(

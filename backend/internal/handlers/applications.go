@@ -25,6 +25,12 @@ func NewApplicationHandler(queries *database.Queries) *ApplicationHandler {
 // Supports pagination with ?page=1&limit=10 (optional, backward compatible)
 // Note: Status filter and pagination can be combined
 func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	// Check if status filter is provided
@@ -34,7 +40,10 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 
 	// If status is provided but no pagination, return all filtered (backward compatible)
 	if status != "" && pageStr == "" && limitStr == "" {
-		applications, err := h.queries.GetApplicationsByStatus(ctx, status)
+		applications, err := h.queries.GetApplicationsByStatusAndUserID(ctx, database.GetApplicationsByStatusAndUserIDParams{
+			Status: status,
+			UserID: userID,
+		})
 		if err != nil {
 			sendInternalError(c, "Failed to fetch applications", err)
 			return
@@ -45,7 +54,7 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 
 	// If no pagination params and no status, return all (backward compatible)
 	if pageStr == "" && limitStr == "" && status == "" {
-		applications, err := h.queries.GetAllApplications(ctx)
+		applications, err := h.queries.GetApplicationsByUserID(ctx, userID)
 		if err != nil {
 			sendInternalError(c, "Failed to fetch applications", err)
 			return
@@ -61,8 +70,9 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 	// If status is provided with pagination, use database-level pagination (efficient!)
 	if status != "" {
 		// Fetch paginated applications with status filter (database handles pagination)
-		applications, err := h.queries.GetApplicationsByStatusPaginated(ctx, database.GetApplicationsByStatusPaginatedParams{
+		applications, err := h.queries.GetApplicationsByStatusAndUserIDPaginated(ctx, database.GetApplicationsByStatusAndUserIDPaginatedParams{
 			Status: status,
+			UserID: userID,
 			Limit:  params.Limit,
 			Offset: offset,
 		})
@@ -72,7 +82,10 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 		}
 
 		// Fetch total count for pagination metadata
-		totalCount, err := h.queries.CountApplicationsByStatus(ctx, status)
+		totalCount, err := h.queries.CountApplicationsByStatusAndUserID(ctx, database.CountApplicationsByStatusAndUserIDParams{
+			Status: status,
+			UserID: userID,
+		})
 		if err != nil {
 			sendInternalError(c, "Failed to count applications", err)
 			return
@@ -97,7 +110,8 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 	}
 
 	// Fetch paginated applications (no status filter)
-	applications, err := h.queries.GetAllApplicationsPaginated(ctx, database.GetAllApplicationsPaginatedParams{
+	applications, err := h.queries.GetApplicationsByUserIDPaginated(ctx, database.GetApplicationsByUserIDPaginatedParams{
+		UserID: userID,
 		Limit:  params.Limit,
 		Offset: offset,
 	})
@@ -107,7 +121,7 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 	}
 
 	// Fetch total count
-	totalCount, err := h.queries.CountApplications(ctx)
+	totalCount, err := h.queries.CountApplicationsByUserID(ctx, userID)
 	if err != nil {
 		sendInternalError(c, "Failed to count applications", err)
 		return
@@ -132,8 +146,14 @@ func (h *ApplicationHandler) GetAllApplications(c *gin.Context) {
 }
 
 // GetApplicationByID handles GET /api/applications/:id
-// Returns a single application by ID
+// Returns a single application by ID (verifies ownership)
 func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get ID from URL parameter
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -142,9 +162,12 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 		return
 	}
 
-	// Query database
+	// Query database (verifies ownership via user_id)
 	ctx := c.Request.Context()
-	application, err := h.queries.GetApplicationByID(ctx, int32(id))
+	application, err := h.queries.GetApplicationByIDAndUserID(ctx, database.GetApplicationByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Application") {
 		return
 	}
@@ -153,8 +176,14 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 }
 
 // GetJobByApplicationID handles GET /api/applications/:id/job
-// Returns the job for a specific application
+// Returns the job for a specific application (verifies ownership)
 func (h *ApplicationHandler) GetJobByApplicationID(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get application ID from URL parameter
 	applicationIDStr := c.Param("id")
 	applicationID, err := strconv.Atoi(applicationIDStr)
@@ -163,9 +192,12 @@ func (h *ApplicationHandler) GetJobByApplicationID(c *gin.Context) {
 		return
 	}
 
-	// Query database
+	// Query database (verifies ownership through application's user_id)
 	ctx := c.Request.Context()
-	job, err := h.queries.GetJobByApplicationID(ctx, int32(applicationID))
+	job, err := h.queries.GetJobByApplicationIDAndUserID(ctx, database.GetJobByApplicationIDAndUserIDParams{
+		ApplicationID: int32(applicationID),
+		UserID:        userID,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			sendNotFound(c, "Job")
@@ -211,17 +243,26 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 		return
 	}
 
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get request context
 	ctx := c.Request.Context()
 
-	// Validate contact_id if provided
+	// Validate contact_id if provided (verify ownership)
 	var contactID sql.NullInt32
 	if req.ContactID != nil {
-		// Check if contact exists
-		_, err := h.queries.GetContactByID(ctx, int32(*req.ContactID))
+		// Check if contact exists and belongs to this user
+		_, err := h.queries.GetContactByIDAndUserID(ctx, database.GetContactByIDAndUserIDParams{
+			ID:     int32(*req.ContactID),
+			UserID: userID,
+		})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				sendBadRequest(c, "Contact not found", "The specified contact ID does not exist")
+				sendBadRequest(c, "Contact not found", "The specified contact ID does not exist or does not belong to you")
 				return
 			}
 			sendInternalError(c, "Failed to validate contact", err)
@@ -236,6 +277,7 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},
 		ContactID:   contactID,
+		UserID:      userID,
 	})
 	if handleDatabaseError(c, err, "Application") {
 		return
@@ -283,23 +325,26 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 		return
 	}
 
-	// Get request context
-	ctx := c.Request.Context()
-
-	// Check if application exists
-	_, err = h.queries.GetApplicationByID(ctx, int32(id))
-	if handleDatabaseError(c, err, "Application") {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
 		return
 	}
 
-	// Validate contact_id if provided
+	// Get request context
+	ctx := c.Request.Context()
+
+	// Validate contact_id if provided (verify ownership)
 	var contactID sql.NullInt32
 	if req.ContactID != nil {
-		// Check if contact exists
-		_, err := h.queries.GetContactByID(ctx, int32(*req.ContactID))
+		// Check if contact exists and belongs to this user
+		_, err := h.queries.GetContactByIDAndUserID(ctx, database.GetContactByIDAndUserIDParams{
+			ID:     int32(*req.ContactID),
+			UserID: userID,
+		})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				sendBadRequest(c, "Contact not found", "The specified contact ID does not exist")
+				sendBadRequest(c, "Contact not found", "The specified contact ID does not exist or does not belong to you")
 				return
 			}
 			sendInternalError(c, "Failed to validate contact", err)
@@ -308,13 +353,14 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 		contactID = sql.NullInt32{Int32: int32(*req.ContactID), Valid: true}
 	}
 
-	// Update application
+	// Update application (verifies ownership via user_id)
 	application, err := h.queries.UpdateApplication(ctx, database.UpdateApplicationParams{
 		ID:          int32(id),
 		Status:      req.Status,
 		AppliedDate: appliedDate,
 		Notes:       sql.NullString{String: req.Notes, Valid: req.Notes != ""},
 		ContactID:   contactID,
+		UserID:      userID,
 	})
 	if handleDatabaseError(c, err, "Application") {
 		return
@@ -334,17 +380,20 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 		return
 	}
 
-	// Get request context
-	ctx := c.Request.Context()
-
-	// Check if application exists
-	_, err = h.queries.GetApplicationByID(ctx, int32(id))
-	if handleDatabaseError(c, err, "Application") {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
 		return
 	}
 
-	// Delete application
-	err = h.queries.DeleteApplication(ctx, int32(id))
+	// Get request context
+	ctx := c.Request.Context()
+
+	// Delete application (verifies ownership via user_id)
+	err = h.queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Application") {
 		return
 	}

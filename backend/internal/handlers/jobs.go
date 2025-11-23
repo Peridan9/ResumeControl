@@ -24,6 +24,12 @@ func NewJobHandler(queries *database.Queries) *JobHandler {
 // Returns all jobs or paginated jobs if page/limit query params are provided
 // Query params: ?page=1&limit=10 (optional, backward compatible)
 func (h *JobHandler) GetAllJobs(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	// Check if pagination parameters are provided
@@ -32,7 +38,7 @@ func (h *JobHandler) GetAllJobs(c *gin.Context) {
 
 	// If no pagination params, return all (backward compatible)
 	if pageStr == "" && limitStr == "" {
-		jobs, err := h.queries.GetAllJobs(ctx)
+		jobs, err := h.queries.GetJobsByUserID(ctx, userID)
 		if err != nil {
 			sendInternalError(c, "Failed to fetch jobs", err)
 			return
@@ -46,7 +52,8 @@ func (h *JobHandler) GetAllJobs(c *gin.Context) {
 	offset := CalculateOffset(params.Page, params.Limit)
 
 	// Fetch paginated jobs
-	jobs, err := h.queries.GetAllJobsPaginated(ctx, database.GetAllJobsPaginatedParams{
+	jobs, err := h.queries.GetJobsByUserIDPaginated(ctx, database.GetJobsByUserIDPaginatedParams{
+		UserID: userID,
 		Limit:  params.Limit,
 		Offset: offset,
 	})
@@ -56,7 +63,7 @@ func (h *JobHandler) GetAllJobs(c *gin.Context) {
 	}
 
 	// Fetch total count
-	totalCount, err := h.queries.CountJobs(ctx)
+	totalCount, err := h.queries.CountJobsByUserID(ctx, userID)
 	if err != nil {
 		sendInternalError(c, "Failed to count jobs", err)
 		return
@@ -81,8 +88,14 @@ func (h *JobHandler) GetAllJobs(c *gin.Context) {
 }
 
 // GetJobByID handles GET /api/jobs/:id
-// Returns a single job by ID
+// Returns a single job by ID (verifies ownership through application)
 func (h *JobHandler) GetJobByID(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get ID from URL parameter
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -91,9 +104,12 @@ func (h *JobHandler) GetJobByID(c *gin.Context) {
 		return
 	}
 
-	// Query database
+	// Query database (verifies ownership through application's user_id)
 	ctx := c.Request.Context()
-	job, err := h.queries.GetJobByID(ctx, int32(id))
+	job, err := h.queries.GetJobByIDAndUserID(ctx, database.GetJobByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Job") {
 		return
 	}
@@ -102,8 +118,14 @@ func (h *JobHandler) GetJobByID(c *gin.Context) {
 }
 
 // GetJobsByCompanyID handles GET /api/companies/:id/jobs
-// Returns all jobs for a specific company
+// Returns all jobs for a specific company (verifies ownership through application)
 func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get company ID from URL parameter
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
@@ -112,9 +134,12 @@ func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
 		return
 	}
 
-	// Query database
+	// Query database (verifies ownership through application's user_id)
 	ctx := c.Request.Context()
-	jobs, err := h.queries.GetJobsByCompanyID(ctx, int32(companyID))
+	jobs, err := h.queries.GetJobsByCompanyIDAndUserID(ctx, database.GetJobsByCompanyIDAndUserIDParams{
+		CompanyID: int32(companyID),
+		UserID:    userID,
+	})
 	if err != nil {
 		sendInternalError(c, "Failed to fetch jobs", err)
 		return
@@ -150,17 +175,29 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		return
 	}
 
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get request context
 	ctx := c.Request.Context()
 
-	// Validate application exists
-	_, err := h.queries.GetApplicationByID(ctx, req.ApplicationID)
+	// Validate application exists and belongs to this user
+	_, err := h.queries.GetApplicationByIDAndUserID(ctx, database.GetApplicationByIDAndUserIDParams{
+		ID:     req.ApplicationID,
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Application") {
 		return
 	}
 
-	// Validate company exists
-	_, err = h.queries.GetCompanyByID(ctx, req.CompanyID)
+	// Validate company exists and belongs to this user
+	_, err = h.queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     req.CompanyID,
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Company") {
 		return
 	}
@@ -213,22 +250,23 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		return
 	}
 
-	// Get request context
-	ctx := c.Request.Context()
-
-	// Check if job exists
-	_, err = h.queries.GetJobByID(ctx, int32(id))
-	if handleDatabaseError(c, err, "Job") {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
 		return
 	}
 
-	// Update job
+	// Get request context
+	ctx := c.Request.Context()
+
+	// Update job (verifies ownership through application's user_id)
 	job, err := h.queries.UpdateJob(ctx, database.UpdateJobParams{
 		ID:           int32(id),
 		Title:        req.Title,
 		Description:  sql.NullString{String: req.Description, Valid: req.Description != ""},
 		Requirements: sql.NullString{String: req.Requirements, Valid: req.Requirements != ""},
 		Location:     sql.NullString{String: req.Location, Valid: req.Location != ""},
+		UserID:       userID,
 	})
 	if handleDatabaseError(c, err, "Job") {
 		return
@@ -248,17 +286,20 @@ func (h *JobHandler) DeleteJob(c *gin.Context) {
 		return
 	}
 
-	// Get request context
-	ctx := c.Request.Context()
-
-	// Check if job exists
-	_, err = h.queries.GetJobByID(ctx, int32(id))
-	if handleDatabaseError(c, err, "Job") {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
 		return
 	}
 
-	// Delete job
-	err = h.queries.DeleteJob(ctx, int32(id))
+	// Get request context
+	ctx := c.Request.Context()
+
+	// Delete job (verifies ownership through application's user_id)
+	err = h.queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Job") {
 		return
 	}
