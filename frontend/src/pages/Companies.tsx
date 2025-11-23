@@ -137,6 +137,7 @@ export default function Companies() {
             : 'No companies found.'
         }
         loading={loading}
+        isDeleting={deleteCompanyMutation.isPending}
       />
 
       {/* Create/Edit Modal */}

@@ -137,6 +137,7 @@ export default function Contacts() {
             : 'No contacts found.'
         }
         loading={loading}
+        isDeleting={deleteContactMutation.isPending}
       />
 
       {/* Create/Edit Modal */}

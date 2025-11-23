@@ -19,6 +19,10 @@ Thumbs.db
 # Logs
 *.log
 
+#cursor files
+.cursor/
+
 # Project tracking files
 TODO.md
 problems.md
+

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BuildingOfficeIcon,
@@ -14,6 +15,7 @@ import type { Application, Job, Company, Contact } from '../../types'
 import { nullTimeToString, nullStringToString } from '../../utils/helpers'
 import Tooltip from '../ui/Tooltip'
 import DataTable, { Column } from '../ui/DataTable'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 interface ApplicationTableProps {
   applications: Application[]
@@ -26,6 +28,7 @@ interface ApplicationTableProps {
   onStatusFilterChange?: (status: string) => void
   onEdit?: (application: Application) => void
   onDelete?: (id: number) => void
+  isDeleting?: boolean
 }
 
 export const STATUS_OPTIONS = [
@@ -49,12 +52,24 @@ export default function ApplicationTable({
   onStatusFilterChange,
   onEdit,
   onDelete,
+  isDeleting = false,
 }: ApplicationTableProps) {
   const navigate = useNavigate()
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [applicationToDelete, setApplicationToDelete] = useState<Application | null>(null)
 
   const handleDelete = (application: Application) => {
-    if (onDelete && window.confirm(`Are you sure you want to delete this application?`)) {
-      onDelete(application.id)
+    if (onDelete) {
+      setApplicationToDelete(application)
+      setIsDeleteDialogOpen(true)
+    }
+  }
+
+  const handleDeleteConfirm = () => {
+    if (onDelete && applicationToDelete) {
+      onDelete(applicationToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setApplicationToDelete(null)
     }
   }
 
@@ -305,15 +320,33 @@ export default function ApplicationTable({
   ) : undefined
 
   return (
-    <DataTable
-      data={applications}
-      columns={columns}
-      emptyMessage={emptyMessage}
-      rowKey={(application) => application.id}
-      loading={loading}
-      onRowClick={handleRowClick}
-      filter={filterContent}
-      filterLabel="Filter Applications"
-    />
+    <>
+      <DataTable
+        data={applications}
+        columns={columns}
+        emptyMessage={emptyMessage}
+        rowKey={(application) => application.id}
+        loading={loading}
+        onRowClick={handleRowClick}
+        filter={filterContent}
+        filterLabel="Filter Applications"
+      />
+      {onDelete && (
+        <ConfirmDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false)
+            setApplicationToDelete(null)
+          }}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Application"
+          message="Are you sure you want to delete this application? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="danger"
+          isLoading={isDeleting}
+        />
+      )}
+    </>
   )
 }

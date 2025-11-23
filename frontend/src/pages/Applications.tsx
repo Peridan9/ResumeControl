@@ -218,6 +218,7 @@ export default function Applications() {
         onStatusFilterChange={setStatusFilter}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        isDeleting={deleteApplicationMutation.isPending}
         emptyMessage={
           statusFilter
             ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`

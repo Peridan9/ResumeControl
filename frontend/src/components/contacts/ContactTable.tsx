@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   UserIcon,
   EnvelopeIcon,
@@ -10,6 +11,7 @@ import {
 import type { Contact } from '../../types'
 import { nullStringToString, nullTimeToString } from '../../utils/helpers'
 import DataTable, { Column } from '../ui/DataTable'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 interface ContactTableProps {
   contacts: Contact[]
@@ -17,6 +19,7 @@ interface ContactTableProps {
   onDelete: (id: number) => void
   emptyMessage?: string
   loading?: boolean
+  isDeleting?: boolean
 }
 
 export default function ContactTable({
@@ -25,10 +28,21 @@ export default function ContactTable({
   onDelete,
   emptyMessage = 'No contacts found.',
   loading = false,
+  isDeleting = false,
 }: ContactTableProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [contactToDelete, setContactToDelete] = useState<Contact | null>(null)
+
   const handleDelete = (contact: Contact) => {
-    if (window.confirm(`Are you sure you want to delete "${contact.name}"?`)) {
-      onDelete(contact.id)
+    setContactToDelete(contact)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (contactToDelete) {
+      onDelete(contactToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setContactToDelete(null)
     }
   }
 
@@ -171,13 +185,29 @@ export default function ContactTable({
   ]
 
   return (
-    <DataTable
-      data={contacts}
-      columns={columns}
-      emptyMessage={emptyMessage}
-      rowKey={(contact) => contact.id}
-      loading={loading}
-    />
+    <>
+      <DataTable
+        data={contacts}
+        columns={columns}
+        emptyMessage={emptyMessage}
+        rowKey={(contact) => contact.id}
+        loading={loading}
+      />
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false)
+          setContactToDelete(null)
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Contact"
+        message={`Are you sure you want to delete "${contactToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+    </>
   )
 }
 

@@ -9,6 +9,7 @@ import {
 import type { Company } from '../../types'
 import { nullStringToString, nullTimeToString } from '../../utils/helpers'
 import DataTable, { Column } from '../ui/DataTable'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 interface CompanyTableProps {
   companies: Company[]
@@ -16,6 +17,7 @@ interface CompanyTableProps {
   onDelete: (id: number) => void
   emptyMessage?: string
   loading?: boolean
+  isDeleting?: boolean
 }
 
 export default function CompanyTable({
@@ -24,8 +26,11 @@ export default function CompanyTable({
   onDelete,
   emptyMessage = 'No companies found.',
   loading = false,
+  isDeleting = false,
 }: CompanyTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
 
   // Filter companies based on search term
   const filteredCompanies = useMemo(() => {
@@ -41,8 +46,15 @@ export default function CompanyTable({
     )
   }, [companies, searchTerm])
   const handleDelete = (company: Company) => {
-    if (window.confirm(`Are you sure you want to delete "${company.name}"?`)) {
-      onDelete(company.id)
+    setCompanyToDelete(company)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (companyToDelete) {
+      onDelete(companyToDelete.id)
+      setIsDeleteDialogOpen(false)
+      setCompanyToDelete(null)
     }
   }
 
@@ -162,15 +174,31 @@ export default function CompanyTable({
   )
 
   return (
-    <DataTable
-      data={filteredCompanies}
-      columns={columns}
-      emptyMessage={searchTerm ? 'No companies match your search.' : emptyMessage}
-      rowKey={(company) => company.id}
-      loading={loading}
-      filter={filterContent}
-      filterLabel="Filter Companies"
-    />
+    <>
+      <DataTable
+        data={filteredCompanies}
+        columns={columns}
+        emptyMessage={searchTerm ? 'No companies match your search.' : emptyMessage}
+        rowKey={(company) => company.id}
+        loading={loading}
+        filter={filterContent}
+        filterLabel="Filter Companies"
+      />
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false)
+          setCompanyToDelete(null)
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Company"
+        message={`Are you sure you want to delete "${companyToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+    </>
   )
 }
 

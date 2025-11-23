@@ -146,7 +146,6 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 
-	//test commit for coderabbit
 	// Normalize email
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
