@@ -39,10 +39,10 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  @apply bg-dark-bg-secondary text-dark-text-primary;
+  @apply bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white;
 }
 
-/* Global form input styles using custom color classes */
+/* Global form input styles */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -50,7 +50,7 @@ input[type="date"],
 input[type="number"],
 textarea,
 select {
-  @apply bg-dark-input-bg border-dark-input-border text-dark-input-text placeholder-dark-input-placeholder;
+  @apply bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400;
 }
 
 input[type="text"]:focus,
