@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   UserIcon,
   EnvelopeIcon,
@@ -30,6 +31,7 @@ export default function ContactTable({
   loading = false,
   isDeleting = false,
 }: ContactTableProps) {
+  const navigate = useNavigate()
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null)
 
@@ -44,6 +46,10 @@ export default function ContactTable({
       setIsDeleteDialogOpen(false)
       setContactToDelete(null)
     }
+  }
+
+  const handleRowClick = (contact: Contact) => {
+    navigate(`/contacts/${contact.id}`)
   }
 
   const formatDate = (dateString: string | null): string => {
@@ -192,6 +198,7 @@ export default function ContactTable({
         emptyMessage={emptyMessage}
         rowKey={(contact) => contact.id}
         loading={loading}
+        onRowClick={handleRowClick}
       />
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}

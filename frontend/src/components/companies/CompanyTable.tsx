@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   BuildingOfficeIcon,
   GlobeAltIcon,
@@ -28,6 +29,7 @@ export default function CompanyTable({
   loading = false,
   isDeleting = false,
 }: CompanyTableProps) {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
@@ -56,6 +58,10 @@ export default function CompanyTable({
       setIsDeleteDialogOpen(false)
       setCompanyToDelete(null)
     }
+  }
+
+  const handleRowClick = (company: Company) => {
+    navigate(`/companies/${company.id}`)
   }
 
   const formatDate = (dateString: string | null): string => {
@@ -183,6 +189,7 @@ export default function CompanyTable({
         loading={loading}
         filter={filterContent}
         filterLabel="Filter Companies"
+        onRowClick={handleRowClick}
       />
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}

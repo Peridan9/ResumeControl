@@ -8,6 +8,8 @@ import Companies from './pages/Companies'
 import Contacts from './pages/Contacts'
 import Applications from './pages/Applications'
 import ApplicationDetail from './pages/ApplicationDetail'
+import CompanyDetail from './pages/CompanyDetail'
+import ContactDetail from './pages/ContactDetail'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
@@ -114,6 +116,26 @@ function AppRoutes() {
             <ProtectedRoute>
               <Layout>
                 <ApplicationDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/companies/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <CompanyDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contacts/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ContactDetail />
               </Layout>
             </ProtectedRoute>
           }
