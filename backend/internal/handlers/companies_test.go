@@ -18,19 +18,28 @@ func TestGetAllCompanies(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
-	// Create a test company first
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-getall@example.com")
+	defer cleanup()
 	ctx := context.Background()
+
+	// Create a test company first
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    "Test Company for GetAll",
 		Website: sql.NullString{String: "https://test.com", Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
-	// Make request
+	// Make request with authentication
 	req := httptest.NewRequest("GET", "/api/companies", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -66,20 +75,28 @@ func TestGetCompanyByID(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-getbyid@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    "Test Company for GetByID",
 		Website: sql.NullString{String: "https://test.com", Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test successful retrieval
 	req := httptest.NewRequest("GET", "/api/companies/"+strconv.Itoa(int(company.ID)), nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -101,6 +118,7 @@ func TestGetCompanyByID(t *testing.T) {
 
 	// Test not found
 	req = httptest.NewRequest("GET", "/api/companies/99999", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -110,6 +128,7 @@ func TestGetCompanyByID(t *testing.T) {
 
 	// Test invalid ID
 	req = httptest.NewRequest("GET", "/api/companies/abc", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -123,6 +142,9 @@ func TestCreateCompany(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-create@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Test successful creation
@@ -134,6 +156,7 @@ func TestCreateCompany(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/companies", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -154,11 +177,15 @@ func TestCreateCompany(t *testing.T) {
 	}
 
 	// Cleanup
-	defer queries.DeleteCompany(ctx, created.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     created.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test get-or-create pattern (create same company again)
 	req = httptest.NewRequest("POST", "/api/companies", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -183,6 +210,7 @@ func TestCreateCompany(t *testing.T) {
 
 	req = httptest.NewRequest("POST", "/api/companies", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -196,17 +224,24 @@ func TestUpdateCompany(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-update@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    "Original Company Name",
 		Website: sql.NullString{String: "https://original.com", Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test successful update
 	body := map[string]interface{}{
@@ -217,6 +252,7 @@ func TestUpdateCompany(t *testing.T) {
 
 	req := httptest.NewRequest("PUT", "/api/companies/"+strconv.Itoa(int(company.ID)), bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -236,6 +272,7 @@ func TestUpdateCompany(t *testing.T) {
 	// Test not found
 	req = httptest.NewRequest("PUT", "/api/companies/99999", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -249,12 +286,16 @@ func TestDeleteCompany(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-delete@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    "Company to Delete",
 		Website: sql.NullString{String: "https://delete.com", Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
@@ -262,6 +303,7 @@ func TestDeleteCompany(t *testing.T) {
 
 	// Test successful deletion
 	req := httptest.NewRequest("DELETE", "/api/companies/"+strconv.Itoa(int(company.ID)), nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -270,13 +312,17 @@ func TestDeleteCompany(t *testing.T) {
 	}
 
 	// Verify it's deleted
-	_, err = queries.GetCompanyByID(ctx, company.ID)
+	_, err = queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 	if err == nil {
 		t.Error("Company should be deleted")
 	}
 
 	// Test not found
 	req = httptest.NewRequest("DELETE", "/api/companies/99999", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -290,6 +336,9 @@ func TestGetAllCompanies_WithPagination(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-pagination@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create multiple test companies
@@ -298,16 +347,21 @@ func TestGetAllCompanies_WithPagination(t *testing.T) {
 		company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 			Name:    "Test Company " + strconv.Itoa(i+1),
 			Website: sql.NullString{String: "https://test" + strconv.Itoa(i) + ".com", Valid: true},
+			UserID:  testUser.ID,
 		})
 		if err != nil {
 			t.Fatalf("Failed to create test company: %v", err)
 		}
 		createdCompanies = append(createdCompanies, company)
-		defer queries.DeleteCompany(ctx, company.ID)
+		defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+			ID:     company.ID,
+			UserID: testUser.ID,
+		})
 	}
 
 	// Test pagination: page 1, limit 10
 	req := httptest.NewRequest("GET", "/api/companies?page=1&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -336,6 +390,7 @@ func TestGetAllCompanies_WithPagination(t *testing.T) {
 
 	// Test pagination: page 2, limit 10
 	req = httptest.NewRequest("GET", "/api/companies?page=2&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -361,19 +416,27 @@ func TestGetAllCompanies_PaginationEdgeCases(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-companies-edgecases@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for Edge Cases",
+		Name:   "Test Company for Edge Cases",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test: Page beyond total pages (should return empty data)
 	req := httptest.NewRequest("GET", "/api/companies?page=999&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -392,6 +455,7 @@ func TestGetAllCompanies_PaginationEdgeCases(t *testing.T) {
 
 	// Test: Invalid page (negative) - should use default
 	req = httptest.NewRequest("GET", "/api/companies?page=-1&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -401,6 +465,7 @@ func TestGetAllCompanies_PaginationEdgeCases(t *testing.T) {
 
 	// Test: Invalid limit (zero) - should use default
 	req = httptest.NewRequest("GET", "/api/companies?page=1&limit=0", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -410,6 +475,7 @@ func TestGetAllCompanies_PaginationEdgeCases(t *testing.T) {
 
 	// Test: Maximum limit enforcement (limit > 100 should be capped at 100)
 	req = httptest.NewRequest("GET", "/api/companies?page=1&limit=200", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -428,6 +494,7 @@ func TestGetAllCompanies_PaginationEdgeCases(t *testing.T) {
 
 	// Test: Non-numeric page parameter - should use default
 	req = httptest.NewRequest("GET", "/api/companies?page=abc&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -437,6 +504,7 @@ func TestGetAllCompanies_PaginationEdgeCases(t *testing.T) {
 
 	// Test: Non-numeric limit parameter - should use default
 	req = httptest.NewRequest("GET", "/api/companies?page=1&limit=xyz", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

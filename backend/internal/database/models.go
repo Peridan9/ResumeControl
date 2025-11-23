@@ -17,6 +17,7 @@ type Application struct {
 	CreatedAt   sql.NullTime   `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 	ContactID   sql.NullInt32  `json:"contact_id"`
+	UserID      int32          `json:"user_id"`
 }
 
 type Company struct {
@@ -25,6 +26,7 @@ type Company struct {
 	Website   sql.NullString `json:"website"`
 	CreatedAt sql.NullTime   `json:"created_at"`
 	UpdatedAt sql.NullTime   `json:"updated_at"`
+	UserID    int32          `json:"user_id"`
 }
 
 type Contact struct {
@@ -35,6 +37,7 @@ type Contact struct {
 	Linkedin  sql.NullString `json:"linkedin"`
 	CreatedAt sql.NullTime   `json:"created_at"`
 	UpdatedAt sql.NullTime   `json:"updated_at"`
+	UserID    int32          `json:"user_id"`
 }
 
 type Job struct {
@@ -47,4 +50,23 @@ type Job struct {
 	CreatedAt     sql.NullTime   `json:"created_at"`
 	UpdatedAt     sql.NullTime   `json:"updated_at"`
 	ApplicationID int32          `json:"application_id"`
+}
+
+type RefreshToken struct {
+	ID        int32        `json:"id"`
+	UserID    int32        `json:"user_id"`
+	TokenHash string       `json:"token_hash"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	CreatedAt sql.NullTime `json:"created_at"`
+	RevokedAt sql.NullTime `json:"revoked_at"`
+}
+
+type User struct {
+	ID           int32          `json:"id"`
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Name         sql.NullString `json:"name"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	LastLogin    sql.NullTime   `json:"last_login"`
 }

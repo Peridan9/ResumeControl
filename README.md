@@ -42,9 +42,10 @@ ResumeControl/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/         # React components
-│   │   ├── pages/              # Page components
+│   │   ├── contexts/          # React contexts (AuthContext)
+│   │   ├── pages/             # Page components
 │   │   ├── services/           # API service layer
-│   │   └── types/              # TypeScript types
+│   │   └── types/             # TypeScript types
 │   └── package.json
 └── README.md
 ```
@@ -67,7 +68,42 @@ ENV=development
 
 # Frontend URL for CORS (optional, defaults to http://localhost:3000)
 FRONTEND_URL=http://localhost:3000
+
+# JWT Authentication (required)
+JWT_SECRET=your-secret-key-minimum-32-characters-long-for-security
+JWT_ACCESS_TOKEN_EXPIRATION=15m
+JWT_REFRESH_TOKEN_EXPIRATION=168h
 ```
+
+**Important:** The `JWT_SECRET` must be a strong, random string (minimum 32 characters) for security. Generate one using:
+```bash
+openssl rand -base64 32
+```
+
+## Authentication
+
+ResumeControl uses JWT-based authentication with access tokens and refresh tokens:
+
+- **Access Tokens**: Short-lived (15 minutes by default), sent with every API request
+- **Refresh Tokens**: Long-lived (7 days by default), used to obtain new access tokens
+- **Token Storage**: Tokens are stored in browser localStorage
+- **Automatic Refresh**: Access tokens are automatically refreshed when expired
+
+### User Registration and Login
+
+1. Navigate to `/register` to create a new account
+2. Navigate to `/login` to sign in with existing credentials
+3. All API endpoints (except `/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`) require authentication
+4. Protected routes automatically redirect to login if not authenticated
+
+### API Authentication
+
+All authenticated API requests must include the access token in the Authorization header:
+```
+Authorization: Bearer <access_token>
+```
+
+The frontend automatically handles token management, refresh, and retry logic.
 
 ## How to Run
 
@@ -97,8 +133,11 @@ FRONTEND_URL=http://localhost:3000
 
 4. Run database migrations:
    ```bash
-   # Run SQL schema files in sql/schema/ directory
-   # (Migration tool setup may vary)
+   # Using goose (recommended)
+   cd sql/schema
+   goose postgres "$DB_URL" up
+   
+   # Or manually run SQL files in order (001_*.sql, 002_*.sql, etc.)
    ```
 
 5. Start the server:

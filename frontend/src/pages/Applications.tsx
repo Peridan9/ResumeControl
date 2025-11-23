@@ -1,23 +1,16 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsAPI, jobsAPI, companiesAPI, contactsAPI } from '../services/api'
 import type { Application, Job, Company, Contact } from '../types'
-import ApplicationTable from '../components/applications/ApplicationTable'
+import ApplicationTable, { STATUS_OPTIONS } from '../components/applications/ApplicationTable'
 import ApplicationForm from '../components/applications/ApplicationForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'All Statuses' },
-  { value: 'applied', label: 'Applied' },
-  { value: 'interview', label: 'Interview' },
-  { value: 'offer', label: 'Offer' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-]
-
 export default function Applications() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -157,6 +150,41 @@ export default function Applications() {
     createApplicationMutation.mutate(formData)
   }
 
+  // Handler for editing application (navigate to detail page)
+  const handleEdit = (application: Application) => {
+    navigate(`/applications/${application.id}`)
+  }
+
+  // Mutation for deleting application
+  const deleteApplicationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await applicationsAPI.delete(id)
+    },
+    onSuccess: () => {
+      // Invalidate and refetch all related queries
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      
+      setSuccessMessage('Application deleted successfully!')
+      setMutationError(null)
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null)
+      }, 3000)
+    },
+    onError: (err) => {
+      setMutationError(err instanceof Error ? err.message : 'Failed to delete application')
+      setTimeout(() => {
+        setMutationError(null)
+      }, 5000)
+    },
+  })
+
+  const handleDelete = async (id: number) => {
+    deleteApplicationMutation.mutate(id)
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -164,25 +192,6 @@ export default function Applications() {
         <Button variant="primary" onClick={handleCreate}>
           Add Application
         </Button>
-      </div>
-
-      {/* Status Filter */}
-      <div className="mb-4">
-        <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-2">
-          Filter by Status
-        </label>
-        <select
-          id="statusFilter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-        >
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Success Message */}
@@ -199,25 +208,22 @@ export default function Applications() {
         </div>
       )}
 
-      {/* Loading State */}
-      {loading ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading applications...</p>
-        </div>
-      ) : (
-        <ApplicationTable
-          applications={filteredApplications}
-          jobs={jobs}
-          companies={companies}
-          contacts={contacts}
-          emptyMessage={
-            statusFilter
-              ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
-              : 'No applications found. Create your first application to get started.'
-          }
-        />
-      )}
+      <ApplicationTable
+        applications={filteredApplications}
+        jobs={jobs}
+        companies={companies}
+        contacts={contacts}
+        loading={loading}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        emptyMessage={
+          statusFilter
+            ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
+            : 'No applications found. Create your first application to get started.'
+        }
+      />
 
       {/* Create Application Modal */}
       <Modal

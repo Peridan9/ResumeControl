@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
+	"github.com/peridan9/resumecontrol/backend/internal/middleware"
 )
 
 // Config holds shared dependencies for all handlers
@@ -17,44 +18,70 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 	jobHandler := NewJobHandler(cfg.DB)
 	applicationHandler := NewApplicationHandler(cfg.DB)
 	contactHandler := NewContactHandler(cfg.DB)
+	userHandler := NewUserHandler(cfg.DB)
 
 	// API routes
 	api := r.Group("/api")
 	{
-		// Company routes
-		api.GET("/companies", companyHandler.GetAllCompanies)
-		// Nested route: Get jobs by company (must be before /companies/:id)
-		// Use :id instead of :companyId to avoid route conflict
-		api.GET("/companies/:id/jobs", jobHandler.GetJobsByCompanyID)
-		api.GET("/companies/:id", companyHandler.GetCompanyByID)
-		api.POST("/companies", companyHandler.CreateCompany)
-		api.PUT("/companies/:id", companyHandler.UpdateCompany)
-		api.DELETE("/companies/:id", companyHandler.DeleteCompany)
+		// Auth routes (public - no authentication required)
+		// Apply rate limiting to prevent brute force attacks
+		// 5 requests per second, burst of 10 (allows short bursts)
+		authPublic := api.Group("/auth")
+		authPublic.Use(middleware.RateLimitMiddleware(5.0, 10))
+		{
+			authPublic.POST("/register", userHandler.Register)
+			authPublic.POST("/login", userHandler.Login)
+			authPublic.POST("/refresh", userHandler.Refresh)
+		}
 
-		// Job routes
-		api.GET("/jobs", jobHandler.GetAllJobs)
-		api.GET("/jobs/:id", jobHandler.GetJobByID)
-		api.POST("/jobs", jobHandler.CreateJob)
-		api.PUT("/jobs/:id", jobHandler.UpdateJob)
-		api.DELETE("/jobs/:id", jobHandler.DeleteJob)
+		// Auth routes (protected - require authentication)
+		authProtected := api.Group("/auth")
+		authProtected.Use(middleware.AuthMiddleware())
+		{
+			authProtected.POST("/logout", userHandler.Logout)
+			authProtected.GET("/me", userHandler.Me)
+			authProtected.PUT("/me", userHandler.UpdateMe)
+		}
 
-		// Application routes
-		api.GET("/applications", applicationHandler.GetAllApplications)
-		// Note: Get applications by status is handled via query parameter in GetAllApplications
-		// Example: GET /api/applications?status=applied
-		// Nested route: Get job by application (must be before /applications/:id)
-		api.GET("/applications/:id/job", applicationHandler.GetJobByApplicationID)
-		api.GET("/applications/:id", applicationHandler.GetApplicationByID)
-		api.POST("/applications", applicationHandler.CreateApplication)
-		api.PUT("/applications/:id", applicationHandler.UpdateApplication)
-		api.DELETE("/applications/:id", applicationHandler.DeleteApplication)
+		// Protected routes (require authentication)
+		protected := api.Group("")
+		protected.Use(middleware.AuthMiddleware())
+		{
+				// Company routes
+			protected.GET("/companies", companyHandler.GetAllCompanies)
+			// Nested route: Get jobs by company (must be before /companies/:id)
+			// Use :id instead of :companyId to avoid route conflict
+			protected.GET("/companies/:id/jobs", jobHandler.GetJobsByCompanyID)
+			protected.GET("/companies/:id", companyHandler.GetCompanyByID)
+			protected.POST("/companies", companyHandler.CreateCompany)
+			protected.PUT("/companies/:id", companyHandler.UpdateCompany)
+			protected.DELETE("/companies/:id", companyHandler.DeleteCompany)
 
-		// Contact routes
-		api.GET("/contacts", contactHandler.GetAllContacts)
-		api.GET("/contacts/:id", contactHandler.GetContactByID)
-		api.POST("/contacts", contactHandler.CreateContact)
-		api.PUT("/contacts/:id", contactHandler.UpdateContact)
-		api.DELETE("/contacts/:id", contactHandler.DeleteContact)
+			// Job routes
+			protected.GET("/jobs", jobHandler.GetAllJobs)
+			protected.GET("/jobs/:id", jobHandler.GetJobByID)
+			protected.POST("/jobs", jobHandler.CreateJob)
+			protected.PUT("/jobs/:id", jobHandler.UpdateJob)
+			protected.DELETE("/jobs/:id", jobHandler.DeleteJob)
+
+			// Application routes
+			protected.GET("/applications", applicationHandler.GetAllApplications)
+			// Note: Get applications by status is handled via query parameter in GetAllApplications
+			// Example: GET /api/applications?status=applied
+			// Nested route: Get job by application (must be before /applications/:id)
+			protected.GET("/applications/:id/job", applicationHandler.GetJobByApplicationID)
+			protected.GET("/applications/:id", applicationHandler.GetApplicationByID)
+			protected.POST("/applications", applicationHandler.CreateApplication)
+			protected.PUT("/applications/:id", applicationHandler.UpdateApplication)
+			protected.DELETE("/applications/:id", applicationHandler.DeleteApplication)
+
+			// Contact routes
+			protected.GET("/contacts", contactHandler.GetAllContacts)
+			protected.GET("/contacts/:id", contactHandler.GetContactByID)
+			protected.POST("/contacts", contactHandler.CreateContact)
+			protected.PUT("/contacts/:id", contactHandler.UpdateContact)
+			protected.DELETE("/contacts/:id", contactHandler.DeleteContact)
+		}
 	}
 }
 

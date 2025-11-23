@@ -11,35 +11,41 @@ import (
 	"time"
 )
 
-const countApplications = `-- name: CountApplications :one
+const countApplicationsByStatusAndUserID = `-- name: CountApplicationsByStatusAndUserID :one
 SELECT COUNT(*) FROM applications
+WHERE status = $1 AND user_id = $2
 `
 
-// Get total count of applications
-func (q *Queries) CountApplications(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countApplications)
+type CountApplicationsByStatusAndUserIDParams struct {
+	Status string `json:"status"`
+	UserID int32  `json:"user_id"`
+}
+
+// Get total count of applications with a specific status for a specific user
+func (q *Queries) CountApplicationsByStatusAndUserID(ctx context.Context, arg CountApplicationsByStatusAndUserIDParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countApplicationsByStatusAndUserID, arg.Status, arg.UserID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
-const countApplicationsByStatus = `-- name: CountApplicationsByStatus :one
+const countApplicationsByUserID = `-- name: CountApplicationsByUserID :one
 SELECT COUNT(*) FROM applications
-WHERE status = $1
+WHERE user_id = $1
 `
 
-// Get total count of applications with a specific status
-func (q *Queries) CountApplicationsByStatus(ctx context.Context, status string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countApplicationsByStatus, status)
+// Get total count of applications for a specific user
+func (q *Queries) CountApplicationsByUserID(ctx context.Context, userID int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countApplicationsByUserID, userID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createApplication = `-- name: CreateApplication :one
-INSERT INTO applications (status, applied_date, notes, contact_id)
-VALUES ($1, $2, $3, $4)
-RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id
+INSERT INTO applications (status, applied_date, notes, contact_id, user_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id, user_id
 `
 
 type CreateApplicationParams struct {
@@ -47,6 +53,7 @@ type CreateApplicationParams struct {
 	AppliedDate time.Time      `json:"applied_date"`
 	Notes       sql.NullString `json:"notes"`
 	ContactID   sql.NullInt32  `json:"contact_id"`
+	UserID      int32          `json:"user_id"`
 }
 
 // Create a new application and return the created record
@@ -58,6 +65,7 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		arg.AppliedDate,
 		arg.Notes,
 		arg.ContactID,
+		arg.UserID,
 	)
 	var i Application
 	err := row.Scan(
@@ -68,109 +76,40 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContactID,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const deleteApplication = `-- name: DeleteApplication :exec
 DELETE FROM applications
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 `
 
-// Delete an application by ID
-func (q *Queries) DeleteApplication(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteApplication, id)
+type DeleteApplicationParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// Delete an application by ID (verifies ownership via user_id)
+func (q *Queries) DeleteApplication(ctx context.Context, arg DeleteApplicationParams) error {
+	_, err := q.db.ExecContext(ctx, deleteApplication, arg.ID, arg.UserID)
 	return err
 }
 
-const getAllApplications = `-- name: GetAllApplications :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
-ORDER BY applied_date DESC
+const getApplicationByIDAndUserID = `-- name: GetApplicationByIDAndUserID :one
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
+WHERE id = $1 AND user_id = $2
 `
 
-// Get all applications, ordered by applied_date (newest first)
-func (q *Queries) GetAllApplications(ctx context.Context) ([]Application, error) {
-	rows, err := q.db.QueryContext(ctx, getAllApplications)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Application
-	for rows.Next() {
-		var i Application
-		if err := rows.Scan(
-			&i.ID,
-			&i.Status,
-			&i.AppliedDate,
-			&i.Notes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.ContactID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+type GetApplicationByIDAndUserIDParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
 }
 
-const getAllApplicationsPaginated = `-- name: GetAllApplicationsPaginated :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
-ORDER BY applied_date DESC
-LIMIT $1 OFFSET $2
-`
-
-type GetAllApplicationsPaginatedParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-}
-
-// Get paginated applications, ordered by applied_date (newest first)
-func (q *Queries) GetAllApplicationsPaginated(ctx context.Context, arg GetAllApplicationsPaginatedParams) ([]Application, error) {
-	rows, err := q.db.QueryContext(ctx, getAllApplicationsPaginated, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Application
-	for rows.Next() {
-		var i Application
-		if err := rows.Scan(
-			&i.ID,
-			&i.Status,
-			&i.AppliedDate,
-			&i.Notes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.ContactID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getApplicationByID = `-- name: GetApplicationByID :one
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
-WHERE id = $1
-`
-
-// Get a single application by ID
-func (q *Queries) GetApplicationByID(ctx context.Context, id int32) (Application, error) {
-	row := q.db.QueryRowContext(ctx, getApplicationByID, id)
+// Get a single application by ID and user_id (ownership verification)
+func (q *Queries) GetApplicationByIDAndUserID(ctx context.Context, arg GetApplicationByIDAndUserIDParams) (Application, error) {
+	row := q.db.QueryRowContext(ctx, getApplicationByIDAndUserID, arg.ID, arg.UserID)
 	var i Application
 	err := row.Scan(
 		&i.ID,
@@ -180,19 +119,25 @@ func (q *Queries) GetApplicationByID(ctx context.Context, id int32) (Application
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContactID,
+		&i.UserID,
 	)
 	return i, err
 }
 
-const getApplicationsByStatus = `-- name: GetApplicationsByStatus :many
-SELECT id, status, applied_date, notes, created_at, updated_at, contact_id FROM applications
-WHERE status = $1
+const getApplicationsByStatusAndUserID = `-- name: GetApplicationsByStatusAndUserID :many
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
+WHERE status = $1 AND user_id = $2
 ORDER BY applied_date DESC
 `
 
-// Get all applications with a specific status
-func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([]Application, error) {
-	rows, err := q.db.QueryContext(ctx, getApplicationsByStatus, status)
+type GetApplicationsByStatusAndUserIDParams struct {
+	Status string `json:"status"`
+	UserID int32  `json:"user_id"`
+}
+
+// Get all applications with a specific status for a specific user
+func (q *Queries) GetApplicationsByStatusAndUserID(ctx context.Context, arg GetApplicationsByStatusAndUserIDParams) ([]Application, error) {
+	rows, err := q.db.QueryContext(ctx, getApplicationsByStatusAndUserID, arg.Status, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -208,6 +153,7 @@ func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ContactID,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -222,14 +168,157 @@ func (q *Queries) GetApplicationsByStatus(ctx context.Context, status string) ([
 	return items, nil
 }
 
-const getJobByApplicationID = `-- name: GetJobByApplicationID :one
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
-WHERE application_id = $1
+const getApplicationsByStatusAndUserIDPaginated = `-- name: GetApplicationsByStatusAndUserIDPaginated :many
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
+WHERE status = $1 AND user_id = $2
+ORDER BY applied_date DESC
+LIMIT $3 OFFSET $4
 `
 
-// Get the job for a specific application
-func (q *Queries) GetJobByApplicationID(ctx context.Context, applicationID int32) (Job, error) {
-	row := q.db.QueryRowContext(ctx, getJobByApplicationID, applicationID)
+type GetApplicationsByStatusAndUserIDPaginatedParams struct {
+	Status string `json:"status"`
+	UserID int32  `json:"user_id"`
+	Limit  int32  `json:"limit"`
+	Offset int32  `json:"offset"`
+}
+
+// Get paginated applications with a specific status for a specific user
+func (q *Queries) GetApplicationsByStatusAndUserIDPaginated(ctx context.Context, arg GetApplicationsByStatusAndUserIDPaginatedParams) ([]Application, error) {
+	rows, err := q.db.QueryContext(ctx, getApplicationsByStatusAndUserIDPaginated,
+		arg.Status,
+		arg.UserID,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Application
+	for rows.Next() {
+		var i Application
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.AppliedDate,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ContactID,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getApplicationsByUserID = `-- name: GetApplicationsByUserID :many
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
+WHERE user_id = $1
+ORDER BY applied_date DESC
+`
+
+// Get all applications for a specific user, ordered by applied_date (newest first)
+func (q *Queries) GetApplicationsByUserID(ctx context.Context, userID int32) ([]Application, error) {
+	rows, err := q.db.QueryContext(ctx, getApplicationsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Application
+	for rows.Next() {
+		var i Application
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.AppliedDate,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ContactID,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getApplicationsByUserIDPaginated = `-- name: GetApplicationsByUserIDPaginated :many
+SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
+WHERE user_id = $1
+ORDER BY applied_date DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetApplicationsByUserIDPaginatedParams struct {
+	UserID int32 `json:"user_id"`
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// Get paginated applications for a specific user, ordered by applied_date (newest first)
+func (q *Queries) GetApplicationsByUserIDPaginated(ctx context.Context, arg GetApplicationsByUserIDPaginatedParams) ([]Application, error) {
+	rows, err := q.db.QueryContext(ctx, getApplicationsByUserIDPaginated, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Application
+	for rows.Next() {
+		var i Application
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.AppliedDate,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ContactID,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJobByApplicationIDAndUserID = `-- name: GetJobByApplicationIDAndUserID :one
+SELECT j.id, j.company_id, j.title, j.description, j.requirements, j.location, j.created_at, j.updated_at, j.application_id FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE j.application_id = $1 AND a.user_id = $2
+`
+
+type GetJobByApplicationIDAndUserIDParams struct {
+	ApplicationID int32 `json:"application_id"`
+	UserID        int32 `json:"user_id"`
+}
+
+// Get the job for a specific application (verifies ownership through application's user_id)
+func (q *Queries) GetJobByApplicationIDAndUserID(ctx context.Context, arg GetJobByApplicationIDAndUserIDParams) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getJobByApplicationIDAndUserID, arg.ApplicationID, arg.UserID)
 	var i Job
 	err := row.Scan(
 		&i.ID,
@@ -252,8 +341,8 @@ SET status = $2,
     notes = $4,
     contact_id = $5,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id
+WHERE id = $1 AND user_id = $6
+RETURNING id, status, applied_date, notes, created_at, updated_at, contact_id, user_id
 `
 
 type UpdateApplicationParams struct {
@@ -262,9 +351,10 @@ type UpdateApplicationParams struct {
 	AppliedDate time.Time      `json:"applied_date"`
 	Notes       sql.NullString `json:"notes"`
 	ContactID   sql.NullInt32  `json:"contact_id"`
+	UserID      int32          `json:"user_id"`
 }
 
-// Update an application and return the updated record
+// Update an application and return the updated record (verifies ownership via user_id)
 func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error) {
 	row := q.db.QueryRowContext(ctx, updateApplication,
 		arg.ID,
@@ -272,6 +362,7 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		arg.AppliedDate,
 		arg.Notes,
 		arg.ContactID,
+		arg.UserID,
 	)
 	var i Application
 	err := row.Scan(
@@ -282,6 +373,7 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ContactID,
+		&i.UserID,
 	)
 	return i, err
 }

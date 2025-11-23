@@ -19,27 +19,38 @@ func TestGetAllJobs(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-getall@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company first
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    "Test Company for Jobs",
 		Website: sql.NullString{String: "https://test.com", Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, application.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     application.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test job with application_id
 	job, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -53,10 +64,14 @@ func TestGetAllJobs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteJob(ctx, job.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     job.ID,
+		UserID: testUser.ID,
+	})
 
-	// Make request
+	// Make request with authentication
 	req := httptest.NewRequest("GET", "/api/jobs", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -92,26 +107,37 @@ func TestGetJobByID(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-getbyid@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for GetJobByID",
+		Name:   "Test Company for GetJobByID",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, application.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     application.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test job with application_id
 	job, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -122,10 +148,14 @@ func TestGetJobByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteJob(ctx, job.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     job.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test successful retrieval
 	req := httptest.NewRequest("GET", "/api/jobs/"+strconv.Itoa(int(job.ID)), nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -147,6 +177,7 @@ func TestGetJobByID(t *testing.T) {
 
 	// Test not found
 	req = httptest.NewRequest("GET", "/api/jobs/99999", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -156,6 +187,7 @@ func TestGetJobByID(t *testing.T) {
 
 	// Test invalid ID
 	req = httptest.NewRequest("GET", "/api/jobs/abc", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -169,35 +201,50 @@ func TestGetJobsByCompanyID(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-company@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for GetJobsByCompany",
+		Name:   "Test Company for GetJobsByCompany",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create test applications first
 	app1, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, app1.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     app1.ID,
+		UserID: testUser.ID,
+	})
 
 	app2, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, app2.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     app2.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create test jobs for this company with application_id
 	job1, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -208,7 +255,10 @@ func TestGetJobsByCompanyID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteJob(ctx, job1.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     job1.ID,
+		UserID: testUser.ID,
+	})
 
 	job2, err := queries.CreateJob(ctx, database.CreateJobParams{
 		ApplicationID: app2.ID,
@@ -218,10 +268,14 @@ func TestGetJobsByCompanyID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteJob(ctx, job2.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     job2.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test successful retrieval
 	req := httptest.NewRequest("GET", "/api/companies/"+strconv.Itoa(int(company.ID))+"/jobs", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -258,26 +312,37 @@ func TestCreateJob(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-create@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company first
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for CreateJob",
+		Name:   "Test Company for CreateJob",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, application.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     application.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test successful creation
 	body := map[string]interface{}{
@@ -291,6 +356,7 @@ func TestCreateJob(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "/api/jobs", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -317,7 +383,10 @@ func TestCreateJob(t *testing.T) {
 	}
 
 	// Cleanup
-	defer queries.DeleteJob(ctx, created.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     created.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test validation error (missing title)
 	invalidBody := map[string]interface{}{
@@ -328,6 +397,7 @@ func TestCreateJob(t *testing.T) {
 
 	req = httptest.NewRequest("POST", "/api/jobs", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -345,6 +415,7 @@ func TestCreateJob(t *testing.T) {
 
 	req = httptest.NewRequest("POST", "/api/jobs", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -362,6 +433,7 @@ func TestCreateJob(t *testing.T) {
 
 	req = httptest.NewRequest("POST", "/api/jobs", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -375,26 +447,37 @@ func TestUpdateJob(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-update@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for UpdateJob",
+		Name:   "Test Company for UpdateJob",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, application.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     application.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test job with application_id
 	job, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -405,7 +488,10 @@ func TestUpdateJob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteJob(ctx, job.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     job.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test successful update
 	body := map[string]interface{}{
@@ -417,6 +503,7 @@ func TestUpdateJob(t *testing.T) {
 
 	req := httptest.NewRequest("PUT", "/api/jobs/"+strconv.Itoa(int(job.ID)), bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -436,6 +523,7 @@ func TestUpdateJob(t *testing.T) {
 	// Test not found
 	req = httptest.NewRequest("PUT", "/api/jobs/99999", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -449,26 +537,37 @@ func TestDeleteJob(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-delete@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for DeleteJob",
+		Name:   "Test Company for DeleteJob",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, application.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     application.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test job with application_id
 	job, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -482,6 +581,7 @@ func TestDeleteJob(t *testing.T) {
 
 	// Test successful deletion
 	req := httptest.NewRequest("DELETE", "/api/jobs/"+strconv.Itoa(int(job.ID)), nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -490,13 +590,17 @@ func TestDeleteJob(t *testing.T) {
 	}
 
 	// Verify it's deleted
-	_, err = queries.GetJobByID(ctx, job.ID)
+	_, err = queries.GetJobByIDAndUserID(ctx, database.GetJobByIDAndUserIDParams{
+		ID:     job.ID,
+		UserID: testUser.ID,
+	})
 	if err == nil {
 		t.Error("Job should be deleted")
 	}
 
 	// Test not found
 	req = httptest.NewRequest("DELETE", "/api/jobs/99999", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -510,16 +614,23 @@ func TestGetAllJobs_WithPagination(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-pagination@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for Job Pagination",
+		Name:   "Test Company for Job Pagination",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create multiple test jobs (each needs an application)
 	var createdJobs []database.Job
@@ -528,11 +639,15 @@ func TestGetAllJobs_WithPagination(t *testing.T) {
 		application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 			Status:      "applied",
 			AppliedDate: time.Now(),
+			UserID:      testUser.ID,
 		})
 		if err != nil {
 			t.Fatalf("Failed to create test application: %v", err)
 		}
-		defer queries.DeleteApplication(ctx, application.ID)
+		defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+			ID:     application.ID,
+			UserID: testUser.ID,
+		})
 
 		// Create job with application_id
 		job, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -544,11 +659,15 @@ func TestGetAllJobs_WithPagination(t *testing.T) {
 			t.Fatalf("Failed to create test job: %v", err)
 		}
 		createdJobs = append(createdJobs, job)
-		defer queries.DeleteJob(ctx, job.ID)
+		defer queries.DeleteJob(ctx, database.DeleteJobParams{
+			ID:     job.ID,
+			UserID: testUser.ID,
+		})
 	}
 
 	// Test pagination: page 1, limit 10
 	req := httptest.NewRequest("GET", "/api/jobs?page=1&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -577,6 +696,7 @@ func TestGetAllJobs_WithPagination(t *testing.T) {
 
 	// Test pagination: page 2, limit 10
 	req = httptest.NewRequest("GET", "/api/jobs?page=2&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -602,26 +722,37 @@ func TestGetAllJobs_PaginationEdgeCases(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-jobs-edgecases@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create a test company
 	company, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
-		Name: "Test Company for Job Edge Cases",
+		Name:   "Test Company for Job Edge Cases",
+		UserID: testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test company: %v", err)
 	}
-	defer queries.DeleteCompany(ctx, company.ID)
+	defer queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     company.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test application first
 	application, err := queries.CreateApplication(ctx, database.CreateApplicationParams{
 		Status:      "applied",
 		AppliedDate: time.Now(),
+		UserID:      testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test application: %v", err)
 	}
-	defer queries.DeleteApplication(ctx, application.ID)
+	defer queries.DeleteApplication(ctx, database.DeleteApplicationParams{
+		ID:     application.ID,
+		UserID: testUser.ID,
+	})
 
 	// Create a test job with application_id
 	job, err := queries.CreateJob(ctx, database.CreateJobParams{
@@ -632,10 +763,14 @@ func TestGetAllJobs_PaginationEdgeCases(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	defer queries.DeleteJob(ctx, job.ID)
+	defer queries.DeleteJob(ctx, database.DeleteJobParams{
+		ID:     job.ID,
+		UserID: testUser.ID,
+	})
 
 	// Test: Page beyond total pages (should return empty data)
 	req := httptest.NewRequest("GET", "/api/jobs?page=999&limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -654,6 +789,7 @@ func TestGetAllJobs_PaginationEdgeCases(t *testing.T) {
 
 	// Test: Maximum limit enforcement
 	req = httptest.NewRequest("GET", "/api/jobs?page=1&limit=200", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

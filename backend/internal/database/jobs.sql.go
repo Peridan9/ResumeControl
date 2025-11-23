@@ -10,13 +10,15 @@ import (
 	"database/sql"
 )
 
-const countJobs = `-- name: CountJobs :one
-SELECT COUNT(*) FROM jobs
+const countJobsByUserID = `-- name: CountJobsByUserID :one
+SELECT COUNT(*) FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE a.user_id = $1
 `
 
-// Get total count of jobs
-func (q *Queries) CountJobs(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countJobs)
+// Get total count of jobs for a specific user (through applications)
+func (q *Queries) CountJobsByUserID(ctx context.Context, userID int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countJobsByUserID, userID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -39,6 +41,7 @@ type CreateJobParams struct {
 
 // Create a new job and return the created record
 // Jobs now belong to applications (application_id is required)
+// Note: user_id verification happens in handler by checking application ownership
 func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, error) {
 	row := q.db.QueryRowContext(ctx, createJob,
 		arg.ApplicationID,
@@ -65,107 +68,38 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 
 const deleteJob = `-- name: DeleteJob :exec
 DELETE FROM jobs
-WHERE id = $1
+WHERE jobs.id = $1
+  AND EXISTS (
+    SELECT 1 FROM applications a
+    WHERE a.id = jobs.application_id AND a.user_id = $2
+  )
 `
 
-// Delete a job by ID
-func (q *Queries) DeleteJob(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteJob, id)
+type DeleteJobParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// Delete a job by ID (verifies ownership through application's user_id)
+func (q *Queries) DeleteJob(ctx context.Context, arg DeleteJobParams) error {
+	_, err := q.db.ExecContext(ctx, deleteJob, arg.ID, arg.UserID)
 	return err
 }
 
-const getAllJobs = `-- name: GetAllJobs :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
-ORDER BY created_at DESC
+const getJobByIDAndUserID = `-- name: GetJobByIDAndUserID :one
+SELECT j.id, j.company_id, j.title, j.description, j.requirements, j.location, j.created_at, j.updated_at, j.application_id FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE j.id = $1 AND a.user_id = $2
 `
 
-// Get all jobs, ordered by created_at (newest first)
-func (q *Queries) GetAllJobs(ctx context.Context) ([]Job, error) {
-	rows, err := q.db.QueryContext(ctx, getAllJobs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Job
-	for rows.Next() {
-		var i Job
-		if err := rows.Scan(
-			&i.ID,
-			&i.CompanyID,
-			&i.Title,
-			&i.Description,
-			&i.Requirements,
-			&i.Location,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.ApplicationID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+type GetJobByIDAndUserIDParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
 }
 
-const getAllJobsPaginated = `-- name: GetAllJobsPaginated :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
-ORDER BY created_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type GetAllJobsPaginatedParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-}
-
-// Get paginated jobs, ordered by created_at (newest first)
-func (q *Queries) GetAllJobsPaginated(ctx context.Context, arg GetAllJobsPaginatedParams) ([]Job, error) {
-	rows, err := q.db.QueryContext(ctx, getAllJobsPaginated, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Job
-	for rows.Next() {
-		var i Job
-		if err := rows.Scan(
-			&i.ID,
-			&i.CompanyID,
-			&i.Title,
-			&i.Description,
-			&i.Requirements,
-			&i.Location,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.ApplicationID,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getJobByID = `-- name: GetJobByID :one
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
-WHERE id = $1
-`
-
-// Get a single job by ID
-func (q *Queries) GetJobByID(ctx context.Context, id int32) (Job, error) {
-	row := q.db.QueryRowContext(ctx, getJobByID, id)
+// Get a single job by ID and verify ownership through application's user_id
+func (q *Queries) GetJobByIDAndUserID(ctx context.Context, arg GetJobByIDAndUserIDParams) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getJobByIDAndUserID, arg.ID, arg.UserID)
 	var i Job
 	err := row.Scan(
 		&i.ID,
@@ -181,15 +115,21 @@ func (q *Queries) GetJobByID(ctx context.Context, id int32) (Job, error) {
 	return i, err
 }
 
-const getJobsByApplicationID = `-- name: GetJobsByApplicationID :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
-WHERE application_id = $1
-ORDER BY created_at DESC
+const getJobsByApplicationIDAndUserID = `-- name: GetJobsByApplicationIDAndUserID :many
+SELECT j.id, j.company_id, j.title, j.description, j.requirements, j.location, j.created_at, j.updated_at, j.application_id FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE j.application_id = $1 AND a.user_id = $2
+ORDER BY j.created_at DESC
 `
 
-// Get all jobs for a specific application (should typically be just one)
-func (q *Queries) GetJobsByApplicationID(ctx context.Context, applicationID int32) ([]Job, error) {
-	rows, err := q.db.QueryContext(ctx, getJobsByApplicationID, applicationID)
+type GetJobsByApplicationIDAndUserIDParams struct {
+	ApplicationID int32 `json:"application_id"`
+	UserID        int32 `json:"user_id"`
+}
+
+// Get all jobs for a specific application and verify ownership through application's user_id
+func (q *Queries) GetJobsByApplicationIDAndUserID(ctx context.Context, arg GetJobsByApplicationIDAndUserIDParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getJobsByApplicationIDAndUserID, arg.ApplicationID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -221,15 +161,110 @@ func (q *Queries) GetJobsByApplicationID(ctx context.Context, applicationID int3
 	return items, nil
 }
 
-const getJobsByCompanyID = `-- name: GetJobsByCompanyID :many
-SELECT id, company_id, title, description, requirements, location, created_at, updated_at, application_id FROM jobs
-WHERE company_id = $1
-ORDER BY created_at DESC
+const getJobsByCompanyIDAndUserID = `-- name: GetJobsByCompanyIDAndUserID :many
+SELECT j.id, j.company_id, j.title, j.description, j.requirements, j.location, j.created_at, j.updated_at, j.application_id FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE j.company_id = $1 AND a.user_id = $2
+ORDER BY j.created_at DESC
 `
 
-// Get all jobs for a specific company
-func (q *Queries) GetJobsByCompanyID(ctx context.Context, companyID int32) ([]Job, error) {
-	rows, err := q.db.QueryContext(ctx, getJobsByCompanyID, companyID)
+type GetJobsByCompanyIDAndUserIDParams struct {
+	CompanyID int32 `json:"company_id"`
+	UserID    int32 `json:"user_id"`
+}
+
+// Get all jobs for a specific company and user (through applications)
+func (q *Queries) GetJobsByCompanyIDAndUserID(ctx context.Context, arg GetJobsByCompanyIDAndUserIDParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getJobsByCompanyIDAndUserID, arg.CompanyID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Title,
+			&i.Description,
+			&i.Requirements,
+			&i.Location,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApplicationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJobsByUserID = `-- name: GetJobsByUserID :many
+SELECT j.id, j.company_id, j.title, j.description, j.requirements, j.location, j.created_at, j.updated_at, j.application_id FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE a.user_id = $1
+ORDER BY j.created_at DESC
+`
+
+// Get all jobs for a specific user (through applications), ordered by created_at (newest first)
+func (q *Queries) GetJobsByUserID(ctx context.Context, userID int32) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getJobsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.Title,
+			&i.Description,
+			&i.Requirements,
+			&i.Location,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApplicationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJobsByUserIDPaginated = `-- name: GetJobsByUserIDPaginated :many
+SELECT j.id, j.company_id, j.title, j.description, j.requirements, j.location, j.created_at, j.updated_at, j.application_id FROM jobs j
+INNER JOIN applications a ON j.application_id = a.id
+WHERE a.user_id = $1
+ORDER BY j.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetJobsByUserIDPaginatedParams struct {
+	UserID int32 `json:"user_id"`
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// Get paginated jobs for a specific user (through applications), ordered by created_at (newest first)
+func (q *Queries) GetJobsByUserIDPaginated(ctx context.Context, arg GetJobsByUserIDPaginatedParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, getJobsByUserIDPaginated, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +303,11 @@ SET title = $2,
     requirements = $4,
     location = $5,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE jobs.id = $1
+  AND EXISTS (
+    SELECT 1 FROM applications a
+    WHERE a.id = jobs.application_id AND a.user_id = $6
+  )
 RETURNING id, company_id, title, description, requirements, location, created_at, updated_at, application_id
 `
 
@@ -278,9 +317,10 @@ type UpdateJobParams struct {
 	Description  sql.NullString `json:"description"`
 	Requirements sql.NullString `json:"requirements"`
 	Location     sql.NullString `json:"location"`
+	UserID       int32          `json:"user_id"`
 }
 
-// Update a job and return the updated record
+// Update a job and return the updated record (verifies ownership through application's user_id)
 func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (Job, error) {
 	row := q.db.QueryRowContext(ctx, updateJob,
 		arg.ID,
@@ -288,6 +328,7 @@ func (q *Queries) UpdateJob(ctx context.Context, arg UpdateJobParams) (Job, erro
 		arg.Description,
 		arg.Requirements,
 		arg.Location,
+		arg.UserID,
 	)
 	var i Job
 	err := row.Scan(

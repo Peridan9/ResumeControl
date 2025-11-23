@@ -1,15 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
+	"golang.org/x/crypto/bcrypt"
 	_ "github.com/lib/pq"
 )
+
+// TestUser represents a test user created for testing
+type TestUser struct {
+	ID       int32
+	Email    string
+	Password string
+	Token    string // Access token for authenticated requests
+}
 
 // setupTestRouter creates a Gin router with all handlers for testing
 // This helper function is shared across all test files in the handlers package
@@ -23,6 +35,17 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *database.Queries, *sql.DB) {
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		t.Fatalf("DB_URL not set. Please set DB_URL environment variable or create .env file in backend directory")
+	}
+
+	// Initialize JWT for testing (use a test secret if JWT_SECRET is not set)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		// Use a test secret for testing (32+ characters)
+		jwtSecret = "test-secret-key-for-testing-purposes-only-min-32-chars"
+		os.Setenv("JWT_SECRET", jwtSecret)
+	}
+	if err := auth.InitJWT(); err != nil {
+		t.Fatalf("Failed to initialize JWT: %v", err)
 	}
 
 	// Connect to database
@@ -50,5 +73,86 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *database.Queries, *sql.DB) {
 	cfg.SetupRoutes(r)
 
 	return r, queries, db
+}
+
+// createTestUser creates a test user and returns a TestUser with an access token
+// This helper is used by tests that need an authenticated user
+// Returns the TestUser and a cleanup function that should be deferred
+func createTestUser(t *testing.T, queries *database.Queries, db *sql.DB, email string) (*TestUser, func()) {
+	ctx := context.Background()
+
+	var userID int32
+	var password string
+
+	// Check if user already exists
+	existingUser, err := queries.GetUserByEmail(ctx, email)
+	if err == nil {
+		// User exists, generate token for it
+		userID = existingUser.ID
+		password = "test-password-123" // We don't know the actual password
+		token, err := auth.GenerateAccessToken(existingUser.ID, 15*time.Minute)
+		if err != nil {
+			t.Fatalf("Failed to generate token for existing user: %v", err)
+		}
+		return &TestUser{
+			ID:       existingUser.ID,
+			Email:    existingUser.Email,
+			Password: password,
+			Token:    token,
+		}, func() {
+			cleanupTestUser(t, db, userID)
+		}
+	}
+
+	// Create new user
+	password = "test-password-123"
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
+	}
+
+	user, err := queries.CreateUser(ctx, database.CreateUserParams{
+		Email:        email,
+		PasswordHash: string(hashedPassword),
+		Name:         sql.NullString{String: "Test User", Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	userID = user.ID
+
+	// Generate access token
+	token, err := auth.GenerateAccessToken(user.ID, 15*time.Minute)
+	if err != nil {
+		t.Fatalf("Failed to generate access token: %v", err)
+	}
+
+	return &TestUser{
+		ID:       user.ID,
+		Email:    user.Email,
+		Password: password,
+		Token:    token,
+	}, func() {
+		cleanupTestUser(t, db, userID)
+	}
+}
+
+// cleanupTestUser deletes a test user and all related data (CASCADE delete)
+// This should be called with defer in tests to clean up test data
+// Pass the database connection to perform the deletion
+func cleanupTestUser(t *testing.T, db *sql.DB, userID int32) {
+	if userID == 0 {
+		return // Skip cleanup if userID is invalid
+	}
+
+	ctx := context.Background()
+
+	// Delete user using raw SQL (CASCADE will automatically delete all related data)
+	// This includes: companies, applications, contacts, refresh_tokens
+	_, err := db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", userID)
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup test user %d: %v", userID, err)
+	}
 }
 

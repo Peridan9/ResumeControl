@@ -22,11 +22,17 @@ func NewContactHandler(queries *database.Queries) *ContactHandler {
 }
 
 // GetAllContacts handles GET /api/contacts
-// Returns all contacts
+// Returns all contacts for the authenticated user
 func (h *ContactHandler) GetAllContacts(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
-	contacts, err := h.queries.GetAllContacts(ctx)
+	contacts, err := h.queries.GetContactsByUserID(ctx, userID)
 	if err != nil {
 		sendInternalError(c, "Failed to fetch contacts", err)
 		return
@@ -36,8 +42,14 @@ func (h *ContactHandler) GetAllContacts(c *gin.Context) {
 }
 
 // GetContactByID handles GET /api/contacts/:id
-// Returns a single contact by ID
+// Returns a single contact by ID (verifies ownership)
 func (h *ContactHandler) GetContactByID(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	contactID, err := strconv.Atoi(c.Param("id"))
@@ -46,7 +58,10 @@ func (h *ContactHandler) GetContactByID(c *gin.Context) {
 		return
 	}
 
-	contact, err := h.queries.GetContactByID(ctx, int32(contactID))
+	contact, err := h.queries.GetContactByIDAndUserID(ctx, database.GetContactByIDAndUserIDParams{
+		ID:     int32(contactID),
+		UserID: userID,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			sendNotFound(c, "Contact")
@@ -70,6 +85,12 @@ type CreateContactRequest struct {
 // CreateContact handles POST /api/contacts
 // Creates a new contact
 func (h *ContactHandler) CreateContact(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	var req CreateContactRequest
@@ -90,6 +111,7 @@ func (h *ContactHandler) CreateContact(c *gin.Context) {
 		Email:    sql.NullString{String: req.Email, Valid: req.Email != ""},
 		Phone:    sql.NullString{String: req.Phone, Valid: req.Phone != ""},
 		Linkedin: sql.NullString{String: req.Linkedin, Valid: req.Linkedin != ""},
+		UserID:   userID,
 	})
 	if err != nil {
 		handleDatabaseError(c, err, "Contact")
@@ -108,8 +130,14 @@ type UpdateContactRequest struct {
 }
 
 // UpdateContact handles PUT /api/contacts/:id
-// Updates an existing contact
+// Updates an existing contact (verifies ownership)
 func (h *ContactHandler) UpdateContact(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	contactID, err := strconv.Atoi(c.Param("id"))
@@ -130,24 +158,14 @@ func (h *ContactHandler) UpdateContact(c *gin.Context) {
 		return
 	}
 
-	// Check if contact exists
-	_, err = h.queries.GetContactByID(ctx, int32(contactID))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			sendNotFound(c, "Contact")
-			return
-		}
-		sendInternalError(c, "Failed to fetch contact", err)
-		return
-	}
-
-	// Update contact
+	// Update contact (verifies ownership via user_id)
 	contact, err := h.queries.UpdateContact(ctx, database.UpdateContactParams{
 		ID:       int32(contactID),
 		Name:     req.Name,
 		Email:    sql.NullString{String: req.Email, Valid: req.Email != ""},
 		Phone:    sql.NullString{String: req.Phone, Valid: req.Phone != ""},
 		Linkedin: sql.NullString{String: req.Linkedin, Valid: req.Linkedin != ""},
+		UserID:   userID,
 	})
 	if err != nil {
 		handleDatabaseError(c, err, "Contact")
@@ -158,8 +176,14 @@ func (h *ContactHandler) UpdateContact(c *gin.Context) {
 }
 
 // DeleteContact handles DELETE /api/contacts/:id
-// Deletes a contact by ID
+// Deletes a contact by ID (verifies ownership)
 func (h *ContactHandler) DeleteContact(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	contactID, err := strconv.Atoi(c.Param("id"))
@@ -168,19 +192,20 @@ func (h *ContactHandler) DeleteContact(c *gin.Context) {
 		return
 	}
 
-	// Check if contact exists
-	_, err = h.queries.GetContactByID(ctx, int32(contactID))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			sendNotFound(c, "Contact")
-			return
-		}
-		sendInternalError(c, "Failed to fetch contact", err)
+	// Check if contact exists and belongs to user
+	_, err = h.queries.GetContactByIDAndUserID(ctx, database.GetContactByIDAndUserIDParams{
+		ID:     int32(contactID),
+		UserID: userID,
+	})
+	if handleDatabaseError(c, err, "Contact") {
 		return
 	}
 
-	// Delete contact
-	err = h.queries.DeleteContact(ctx, int32(contactID))
+	// Delete contact (verifies ownership via user_id)
+	err = h.queries.DeleteContact(ctx, database.DeleteContactParams{
+		ID:     int32(contactID),
+		UserID: userID,
+	})
 	if err != nil {
 		handleDatabaseError(c, err, "Contact")
 		return

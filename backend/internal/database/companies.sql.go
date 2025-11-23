@@ -10,32 +10,34 @@ import (
 	"database/sql"
 )
 
-const countCompanies = `-- name: CountCompanies :one
+const countCompaniesByUserID = `-- name: CountCompaniesByUserID :one
 SELECT COUNT(*) FROM companies
+WHERE user_id = $1
 `
 
-// Get total count of companies
-func (q *Queries) CountCompanies(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countCompanies)
+// Get total count of companies for a specific user
+func (q *Queries) CountCompaniesByUserID(ctx context.Context, userID int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCompaniesByUserID, userID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createCompany = `-- name: CreateCompany :one
-INSERT INTO companies (name, website)
-VALUES ($1, $2)
-RETURNING id, name, website, created_at, updated_at
+INSERT INTO companies (name, website, user_id)
+VALUES ($1, $2, $3)
+RETURNING id, name, website, created_at, updated_at, user_id
 `
 
 type CreateCompanyParams struct {
 	Name    string         `json:"name"`
 	Website sql.NullString `json:"website"`
+	UserID  int32          `json:"user_id"`
 }
 
 // Create a new company and return the created record
 func (q *Queries) CreateCompany(ctx context.Context, arg CreateCompanyParams) (Company, error) {
-	row := q.db.QueryRowContext(ctx, createCompany, arg.Name, arg.Website)
+	row := q.db.QueryRowContext(ctx, createCompany, arg.Name, arg.Website, arg.UserID)
 	var i Company
 	err := row.Scan(
 		&i.ID,
@@ -43,29 +45,36 @@ func (q *Queries) CreateCompany(ctx context.Context, arg CreateCompanyParams) (C
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const deleteCompany = `-- name: DeleteCompany :exec
 DELETE FROM companies
-WHERE id = $1
+WHERE id = $1 AND user_id = $2
 `
 
-// Delete a company by ID
-func (q *Queries) DeleteCompany(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteCompany, id)
+type DeleteCompanyParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// Delete a company by ID (verifies ownership via user_id)
+func (q *Queries) DeleteCompany(ctx context.Context, arg DeleteCompanyParams) error {
+	_, err := q.db.ExecContext(ctx, deleteCompany, arg.ID, arg.UserID)
 	return err
 }
 
-const getAllCompanies = `-- name: GetAllCompanies :many
-SELECT id, name, website, created_at, updated_at FROM companies
+const getCompaniesByUserID = `-- name: GetCompaniesByUserID :many
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
+WHERE user_id = $1
 ORDER BY name ASC
 `
 
-// Get all companies, ordered by name
-func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
-	rows, err := q.db.QueryContext(ctx, getAllCompanies)
+// Get all companies for a specific user, ordered by name
+func (q *Queries) GetCompaniesByUserID(ctx context.Context, userID int32) ([]Company, error) {
+	rows, err := q.db.QueryContext(ctx, getCompaniesByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +88,7 @@ func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
 			&i.Website,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -93,20 +103,22 @@ func (q *Queries) GetAllCompanies(ctx context.Context) ([]Company, error) {
 	return items, nil
 }
 
-const getAllCompaniesPaginated = `-- name: GetAllCompaniesPaginated :many
-SELECT id, name, website, created_at, updated_at FROM companies
+const getCompaniesByUserIDPaginated = `-- name: GetCompaniesByUserIDPaginated :many
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
+WHERE user_id = $1
 ORDER BY name ASC
-LIMIT $1 OFFSET $2
+LIMIT $2 OFFSET $3
 `
 
-type GetAllCompaniesPaginatedParams struct {
+type GetCompaniesByUserIDPaginatedParams struct {
+	UserID int32 `json:"user_id"`
 	Limit  int32 `json:"limit"`
 	Offset int32 `json:"offset"`
 }
 
-// Get paginated companies, ordered by name
-func (q *Queries) GetAllCompaniesPaginated(ctx context.Context, arg GetAllCompaniesPaginatedParams) ([]Company, error) {
-	rows, err := q.db.QueryContext(ctx, getAllCompaniesPaginated, arg.Limit, arg.Offset)
+// Get paginated companies for a specific user, ordered by name
+func (q *Queries) GetCompaniesByUserIDPaginated(ctx context.Context, arg GetCompaniesByUserIDPaginatedParams) ([]Company, error) {
+	rows, err := q.db.QueryContext(ctx, getCompaniesByUserIDPaginated, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +132,7 @@ func (q *Queries) GetAllCompaniesPaginated(ctx context.Context, arg GetAllCompan
 			&i.Website,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -134,14 +147,19 @@ func (q *Queries) GetAllCompaniesPaginated(ctx context.Context, arg GetAllCompan
 	return items, nil
 }
 
-const getCompanyByID = `-- name: GetCompanyByID :one
-SELECT id, name, website, created_at, updated_at FROM companies
-WHERE id = $1
+const getCompanyByIDAndUserID = `-- name: GetCompanyByIDAndUserID :one
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
+WHERE id = $1 AND user_id = $2
 `
 
-// Get a single company by ID
-func (q *Queries) GetCompanyByID(ctx context.Context, id int32) (Company, error) {
-	row := q.db.QueryRowContext(ctx, getCompanyByID, id)
+type GetCompanyByIDAndUserIDParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// Get a single company by ID and user_id (ownership verification)
+func (q *Queries) GetCompanyByIDAndUserID(ctx context.Context, arg GetCompanyByIDAndUserIDParams) (Company, error) {
+	row := q.db.QueryRowContext(ctx, getCompanyByIDAndUserID, arg.ID, arg.UserID)
 	var i Company
 	err := row.Scan(
 		&i.ID,
@@ -149,20 +167,26 @@ func (q *Queries) GetCompanyByID(ctx context.Context, id int32) (Company, error)
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
 
-const getCompanyByName = `-- name: GetCompanyByName :one
-SELECT id, name, website, created_at, updated_at FROM companies
-WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
+const getCompanyByNameAndUserID = `-- name: GetCompanyByNameAndUserID :one
+SELECT id, name, website, created_at, updated_at, user_id FROM companies
+WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) AND user_id = $2
 LIMIT 1
 `
 
-// Get a company by name (case-insensitive, for normalization check)
-// This query uses normalized comparison to check if a company exists
-func (q *Queries) GetCompanyByName(ctx context.Context, btrim string) (Company, error) {
-	row := q.db.QueryRowContext(ctx, getCompanyByName, btrim)
+type GetCompanyByNameAndUserIDParams struct {
+	Btrim  string `json:"btrim"`
+	UserID int32  `json:"user_id"`
+}
+
+// Get a company by name and user_id (case-insensitive, for normalization check)
+// This query uses normalized comparison to check if a company exists for a specific user
+func (q *Queries) GetCompanyByNameAndUserID(ctx context.Context, arg GetCompanyByNameAndUserIDParams) (Company, error) {
+	row := q.db.QueryRowContext(ctx, getCompanyByNameAndUserID, arg.Btrim, arg.UserID)
 	var i Company
 	err := row.Scan(
 		&i.ID,
@@ -170,6 +194,7 @@ func (q *Queries) GetCompanyByName(ctx context.Context, btrim string) (Company, 
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -179,19 +204,25 @@ UPDATE companies
 SET name = $2,
     website = $3,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-RETURNING id, name, website, created_at, updated_at
+WHERE id = $1 AND user_id = $4
+RETURNING id, name, website, created_at, updated_at, user_id
 `
 
 type UpdateCompanyParams struct {
 	ID      int32          `json:"id"`
 	Name    string         `json:"name"`
 	Website sql.NullString `json:"website"`
+	UserID  int32          `json:"user_id"`
 }
 
-// Update a company and return the updated record
+// Update a company and return the updated record (verifies ownership via user_id)
 func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (Company, error) {
-	row := q.db.QueryRowContext(ctx, updateCompany, arg.ID, arg.Name, arg.Website)
+	row := q.db.QueryRowContext(ctx, updateCompany,
+		arg.ID,
+		arg.Name,
+		arg.Website,
+		arg.UserID,
+	)
 	var i Company
 	err := row.Scan(
 		&i.ID,
@@ -199,6 +230,7 @@ func (q *Queries) UpdateCompany(ctx context.Context, arg UpdateCompanyParams) (C
 		&i.Website,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }

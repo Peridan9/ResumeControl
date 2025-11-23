@@ -54,6 +54,12 @@ func normalizeCompanyName(name string) string {
 // Returns all companies or paginated companies if page/limit query params are provided
 // Query params: ?page=1&limit=10 (optional, backward compatible)
 func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	ctx := c.Request.Context()
 
 	// Check if pagination parameters are provided
@@ -62,7 +68,7 @@ func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
 
 	// If no pagination params, return all (backward compatible)
 	if pageStr == "" && limitStr == "" {
-		companies, err := h.queries.GetAllCompanies(ctx)
+		companies, err := h.queries.GetCompaniesByUserID(ctx, userID)
 		if err != nil {
 			sendInternalError(c, "Failed to fetch companies", err)
 			return
@@ -76,7 +82,8 @@ func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
 	offset := CalculateOffset(params.Page, params.Limit)
 
 	// Fetch paginated companies
-	companies, err := h.queries.GetAllCompaniesPaginated(ctx, database.GetAllCompaniesPaginatedParams{
+	companies, err := h.queries.GetCompaniesByUserIDPaginated(ctx, database.GetCompaniesByUserIDPaginatedParams{
+		UserID: userID,
 		Limit:  params.Limit,
 		Offset: offset,
 	})
@@ -86,7 +93,7 @@ func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
 	}
 
 	// Fetch total count
-	totalCount, err := h.queries.CountCompanies(ctx)
+	totalCount, err := h.queries.CountCompaniesByUserID(ctx, userID)
 	if err != nil {
 		sendInternalError(c, "Failed to count companies", err)
 		return
@@ -111,8 +118,14 @@ func (h *CompanyHandler) GetAllCompanies(c *gin.Context) {
 }
 
 // GetCompanyByID handles GET /api/companies/:id
-// Returns a single company by ID
+// Returns a single company by ID (verifies ownership)
 func (h *CompanyHandler) GetCompanyByID(c *gin.Context) {
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get ID from URL parameter
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -121,9 +134,12 @@ func (h *CompanyHandler) GetCompanyByID(c *gin.Context) {
 		return
 	}
 
-	// Query database
+	// Query database (verifies ownership via user_id)
 	ctx := c.Request.Context()
-	company, err := h.queries.GetCompanyByID(ctx, int32(id))
+	company, err := h.queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Company") {
 		return
 	}
@@ -156,11 +172,20 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	// Normalize company name
 	normalizedName := normalizeCompanyName(req.Name)
 
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get request context
 	ctx := c.Request.Context()
 
-	// Check if company with this normalized name already exists
-	existingCompany, err := h.queries.GetCompanyByName(ctx, normalizedName)
+	// Check if company with this normalized name already exists for this user
+	existingCompany, err := h.queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
+		Btrim:  normalizedName,
+		UserID: userID,
+	})
 	if err == nil {
 		// Company exists - return it (get-or-create pattern)
 		c.JSON(http.StatusOK, existingCompany)
@@ -176,13 +201,17 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	company, err := h.queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    normalizedName,
 		Website: sql.NullString{String: req.Website, Valid: req.Website != ""},
+		UserID:  userID,
 	})
 	if err != nil {
 		// Check for race condition (another request created it between our check and create)
 		errStr := strings.ToLower(err.Error())
 		if strings.Contains(errStr, "duplicate") || strings.Contains(errStr, "unique") {
 			// Fetch the company that was just created by another request
-			existingCompany, fetchErr := h.queries.GetCompanyByName(ctx, normalizedName)
+			existingCompany, fetchErr := h.queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
+				Btrim:  normalizedName,
+				UserID: userID,
+			})
 			if fetchErr == nil {
 				c.JSON(http.StatusOK, existingCompany)
 				return
@@ -227,11 +256,20 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 		return
 	}
 
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get request context
 	ctx := c.Request.Context()
 
-	// Check if company exists
-	_, err = h.queries.GetCompanyByID(ctx, int32(id))
+	// Check if company exists and belongs to user
+	_, err = h.queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Company") {
 		return
 	}
@@ -239,10 +277,13 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	// Normalize company name
 	normalizedName := normalizeCompanyName(req.Name)
 
-	// Check if another company with this normalized name already exists
-	existingCompany, err := h.queries.GetCompanyByName(ctx, normalizedName)
+	// Check if another company with this normalized name already exists for this user
+	existingCompany, err := h.queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
+		Btrim:  normalizedName,
+		UserID: userID,
+	})
 	if err == nil && existingCompany.ID != int32(id) {
-		// Another company with this name exists
+		// Another company with this name exists for this user
 		sendError(c, http.StatusConflict, "Company name already exists")
 		return
 	}
@@ -252,11 +293,12 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	// Update company with normalized name
+	// Update company with normalized name (verifies ownership via user_id)
 	company, err := h.queries.UpdateCompany(ctx, database.UpdateCompanyParams{
 		ID:      int32(id),
 		Name:    normalizedName,
 		Website: sql.NullString{String: req.Website, Valid: req.Website != ""},
+		UserID:  userID,
 	})
 	if handleDatabaseError(c, err, "Company") {
 		return
@@ -276,17 +318,29 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 		return
 	}
 
+	// Get user_id from context (set by AuthMiddleware)
+	userID, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+
 	// Get request context
 	ctx := c.Request.Context()
 
-	// Check if company exists
-	_, err = h.queries.GetCompanyByID(ctx, int32(id))
+	// Check if company exists and belongs to user
+	_, err = h.queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Company") {
 		return
 	}
 
-	// Delete company
-	err = h.queries.DeleteCompany(ctx, int32(id))
+	// Delete company (verifies ownership via user_id)
+	err = h.queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
 	if handleDatabaseError(c, err, "Company") {
 		return
 	}

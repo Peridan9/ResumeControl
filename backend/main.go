@@ -9,6 +9,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
 	"github.com/peridan9/resumecontrol/backend/internal/handlers"
 	_ "github.com/lib/pq" // PostgreSQL driver (imported for side effects)
@@ -35,11 +36,23 @@ func main() {
 	}
 	defer db.Close() // Close connection when main function exits
 
+	// Configure connection pool settings
+	// These settings optimize database connection usage and prevent connection exhaustion
+	db.SetMaxOpenConns(25)                 // Maximum number of open connections to the database
+	db.SetMaxIdleConns(5)                  // Maximum number of idle connections in the pool
+	db.SetConnMaxLifetime(5 * time.Minute) // Maximum amount of time a connection may be reused
+
 	// Test the connection
 	if err := db.Ping(); err != nil {
 		log.Fatalf("❌ Failed to ping database: %v", err)
 	}
 	log.Println("✅ Successfully connected to database!")
+
+	// Initialize JWT authentication
+	if err := auth.InitJWT(); err != nil {
+		log.Fatalf("❌ Failed to initialize JWT: %v", err)
+	}
+	log.Println("✅ JWT authentication initialized!")
 
 	// Set Gin mode based on environment
 	env := os.Getenv("ENV")

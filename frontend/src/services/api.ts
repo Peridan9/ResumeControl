@@ -14,22 +14,95 @@ import type {
   CreateContactRequest,
   UpdateContactRequest,
 } from '../types'
+import { tokenStorage, authAPI } from './auth'
 
 const API_BASE_URL = '/api'
 
-// Generic fetch wrapper with error handling
+// Track if we're currently refreshing to prevent multiple simultaneous refresh attempts
+let isRefreshing = false
+let refreshPromise: Promise<string | null> | null = null
+
+// Function to refresh token and return new access token
+async function refreshAccessToken(): Promise<string | null> {
+  // If already refreshing, return the existing promise
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise
+  }
+
+  isRefreshing = true
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = tokenStorage.getRefreshToken()
+      if (!refreshToken) {
+        throw new Error('No refresh token available')
+      }
+
+      const response = await authAPI.refreshToken(refreshToken)
+      return response.access_token
+    } catch (error) {
+      // Refresh failed, clear tokens
+      tokenStorage.clearTokens()
+      // Redirect to login will be handled by ProtectedRoute
+      throw error
+    } finally {
+      isRefreshing = false
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
+// Generic fetch wrapper with error handling and automatic token refresh
 async function fetchAPI<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  retryOn401: boolean = true
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+  // Get access token
+  let accessToken = tokenStorage.getAccessToken()
+
+  // Build headers with authorization if token exists
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  // Make request
+  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    headers,
   })
 
+  // Handle 401 Unauthorized - try to refresh token
+  if (response.status === 401 && retryOn401 && accessToken) {
+    try {
+      // Attempt to refresh token
+      const newAccessToken = await refreshAccessToken()
+      
+      if (newAccessToken) {
+        // Retry original request with new token
+        headers['Authorization'] = `Bearer ${newAccessToken}`
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          ...options,
+          headers,
+        })
+      } else {
+        // Refresh failed, throw error
+        throw new Error('Token refresh failed')
+      }
+    } catch (error) {
+      // Refresh failed, clear tokens and throw error
+      tokenStorage.clearTokens()
+      throw new Error('Authentication failed. Please login again.')
+    }
+  }
+
+  // Handle non-OK responses
   if (!response.ok) {
     const error = await response.json().catch(() => ({
       error: 'An error occurred',
