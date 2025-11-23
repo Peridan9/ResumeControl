@@ -149,8 +149,8 @@ func (h *CompanyHandler) GetCompanyByID(c *gin.Context) {
 
 // CreateCompanyRequest represents the JSON body for creating a company
 type CreateCompanyRequest struct {
-	Name    string `json:"name" binding:"required"`
-	Website string `json:"website"`
+	Name    string `json:"name" binding:"required,min=1,max=255"`
+	Website string `json:"website" binding:"omitempty,url,max=255"`
 }
 
 // CreateCompany handles POST /api/companies
@@ -159,13 +159,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	// Parse JSON body
 	var req CreateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate name is not empty (binding:"required" should handle this, but double-check)
-	if strings.TrimSpace(req.Name) == "" {
-		sendBadRequest(c, "Company name is required")
+		sendValidationError(c, err)
 		return
 	}
 
@@ -228,8 +222,8 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 
 // UpdateCompanyRequest represents the JSON body for updating a company
 type UpdateCompanyRequest struct {
-	Name    string `json:"name" binding:"required"`
-	Website string `json:"website"`
+	Name    string `json:"name" binding:"required,min=1,max=255"`
+	Website string `json:"website" binding:"omitempty,url,max=255"`
 }
 
 // UpdateCompany handles PUT /api/companies/:id
@@ -246,13 +240,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	// Parse JSON body
 	var req UpdateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate name is not empty
-	if strings.TrimSpace(req.Name) == "" {
-		sendBadRequest(c, "Company name is required")
+		sendValidationError(c, err)
 		return
 	}
 

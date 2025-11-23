@@ -30,7 +30,7 @@ func NewUserHandler(queries *database.Queries) *UserHandler {
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
-	Name     string `json:"name"`
+	Name     string `json:"name" binding:"omitempty,max=255"`
 }
 
 // RegisterResponse represents the response after successful registration
@@ -49,22 +49,12 @@ func (h *UserHandler) Register(c *gin.Context) {
 	// Parse JSON body
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
+		sendValidationError(c, err)
 		return
 	}
 
-	// Validate email format (binding should handle this, but double-check)
+	// Normalize email (validation already handled by binding tags)
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	if req.Email == "" {
-		sendBadRequest(c, "Email is required")
-		return
-	}
-
-	// Validate password strength
-	if len(req.Password) < 8 {
-		sendBadRequest(c, "Password must be at least 8 characters long")
-		return
-	}
 
 	// Check if user with this email already exists
 	ctx := c.Request.Context()
@@ -151,7 +141,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	// Parse JSON body
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
+		sendValidationError(c, err)
 		return
 	}
 
@@ -350,7 +340,7 @@ func (h *UserHandler) Me(c *gin.Context) {
 
 // UpdateMeRequest represents the JSON body for updating user info
 type UpdateMeRequest struct {
-	Name string `json:"name"`
+	Name string `json:"name" binding:"omitempty,max=255"`
 }
 
 // UpdateMe handles PUT /api/auth/me
@@ -365,7 +355,7 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 	// Parse JSON body
 	var req UpdateMeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
+		sendValidationError(c, err)
 		return
 	}
 

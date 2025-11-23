@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
@@ -153,10 +152,10 @@ func (h *JobHandler) GetJobsByCompanyID(c *gin.Context) {
 type CreateJobRequest struct {
 	ApplicationID int32  `json:"application_id" binding:"required"`
 	CompanyID     int32  `json:"company_id" binding:"required"`
-	Title         string `json:"title" binding:"required"`
-	Description   string `json:"description"`
-	Requirements  string `json:"requirements"`
-	Location      string `json:"location"`
+	Title         string `json:"title" binding:"required,min=1,max=255"`
+	Description   string `json:"description" binding:"omitempty,max=10000"`
+	Requirements  string `json:"requirements" binding:"omitempty,max=10000"`
+	Location      string `json:"location" binding:"omitempty,max=255"`
 }
 
 // CreateJob handles POST /api/jobs
@@ -165,13 +164,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	// Parse JSON body
 	var req CreateJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate title is not empty
-	if strings.TrimSpace(req.Title) == "" {
-		sendBadRequest(c, "Job title is required")
+		sendValidationError(c, err)
 		return
 	}
 
@@ -220,10 +213,10 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 
 // UpdateJobRequest represents the JSON body for updating a job
 type UpdateJobRequest struct {
-	Title        string `json:"title" binding:"required"`
-	Description  string `json:"description"`
-	Requirements string `json:"requirements"`
-	Location     string `json:"location"`
+	Title        string `json:"title" binding:"required,min=1,max=255"`
+	Description  string `json:"description" binding:"omitempty,max=10000"`
+	Requirements string `json:"requirements" binding:"omitempty,max=10000"`
+	Location     string `json:"location" binding:"omitempty,max=255"`
 }
 
 // UpdateJob handles PUT /api/jobs/:id
@@ -240,13 +233,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 	// Parse JSON body
 	var req UpdateJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate title is not empty
-	if strings.TrimSpace(req.Title) == "" {
-		sendBadRequest(c, "Job title is required")
+		sendValidationError(c, err)
 		return
 	}
 

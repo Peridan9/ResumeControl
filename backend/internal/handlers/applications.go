@@ -214,10 +214,10 @@ func (h *ApplicationHandler) GetJobByApplicationID(c *gin.Context) {
 // CreateApplicationRequest represents the JSON body for creating an application
 // Note: job_id is no longer required - jobs will be created after applications
 type CreateApplicationRequest struct {
-	Status      string `json:"status" binding:"required"`
-	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02"
+	Status      string `json:"status" binding:"required,oneof=applied interview offer rejected withdrawn accepted"`
+	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02" (validated manually)
 	ContactID   *int   `json:"contact_id"`                      // Optional contact ID
-	Notes       string `json:"notes"`
+	Notes       string `json:"notes" binding:"omitempty,max=5000"`
 }
 
 // CreateApplication handles POST /api/applications
@@ -226,13 +226,7 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 	// Parse JSON body
 	var req CreateApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate status is not empty
-	if req.Status == "" {
-		sendBadRequest(c, "Status is required")
+		sendValidationError(c, err)
 		return
 	}
 
@@ -288,10 +282,10 @@ func (h *ApplicationHandler) CreateApplication(c *gin.Context) {
 
 // UpdateApplicationRequest represents the JSON body for updating an application
 type UpdateApplicationRequest struct {
-	Status      string `json:"status" binding:"required"`
-	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02"
+	Status      string `json:"status" binding:"required,oneof=applied interview offer rejected withdrawn accepted"`
+	AppliedDate string `json:"applied_date" binding:"required"` // ISO 8601 format: "2006-01-02" (validated manually)
 	ContactID   *int   `json:"contact_id"`                      // Optional contact ID (null to remove)
-	Notes       string `json:"notes"`
+	Notes       string `json:"notes" binding:"omitempty,max=5000"`
 }
 
 // UpdateApplication handles PUT /api/applications/:id
@@ -308,13 +302,7 @@ func (h *ApplicationHandler) UpdateApplication(c *gin.Context) {
 	// Parse JSON body
 	var req UpdateApplicationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate status is not empty
-	if req.Status == "" {
-		sendBadRequest(c, "Status is required")
+		sendValidationError(c, err)
 		return
 	}
 

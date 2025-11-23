@@ -76,10 +76,10 @@ func (h *ContactHandler) GetContactByID(c *gin.Context) {
 
 // CreateContactRequest represents the JSON body for creating a contact
 type CreateContactRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Linkedin string `json:"linkedin"`
+	Name     string `json:"name" binding:"required,min=1,max=255"`
+	Email    string `json:"email" binding:"omitempty,email,max=255"`
+	Phone    string `json:"phone" binding:"omitempty,min=10,max=20"`
+	Linkedin string `json:"linkedin" binding:"omitempty,url,max=500"`
 }
 
 // CreateContact handles POST /api/contacts
@@ -95,13 +95,7 @@ func (h *ContactHandler) CreateContact(c *gin.Context) {
 
 	var req CreateContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate name is not empty
-	if req.Name == "" {
-		sendBadRequest(c, "Name is required", "Contact name cannot be empty")
+		sendValidationError(c, err)
 		return
 	}
 
@@ -123,10 +117,10 @@ func (h *ContactHandler) CreateContact(c *gin.Context) {
 
 // UpdateContactRequest represents the JSON body for updating a contact
 type UpdateContactRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Linkedin string `json:"linkedin"`
+	Name     string `json:"name" binding:"required,min=1,max=255"`
+	Email    string `json:"email" binding:"omitempty,email,max=255"`
+	Phone    string `json:"phone" binding:"omitempty,min=10,max=20"`
+	Linkedin string `json:"linkedin" binding:"omitempty,url,max=500"`
 }
 
 // UpdateContact handles PUT /api/contacts/:id
@@ -148,13 +142,7 @@ func (h *ContactHandler) UpdateContact(c *gin.Context) {
 
 	var req UpdateContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	// Validate name is not empty
-	if req.Name == "" {
-		sendBadRequest(c, "Name is required", "Contact name cannot be empty")
+		sendValidationError(c, err)
 		return
 	}
 
