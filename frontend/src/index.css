@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light theme CSS custom properties */
+:root {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f9fafb; /* gray-50 */
+  --color-text-primary: #111827; /* gray-900 */
+  --color-text-secondary: #4b5563; /* gray-600 */
+  --color-text-muted: #6b7280; /* gray-500 */
+  --color-border-primary: #e5e7eb; /* gray-200 */
+  --color-border-secondary: #d1d5db; /* gray-300 */
+  --color-input-bg: #ffffff;
+  --color-input-border: #d1d5db; /* gray-300 */
+  --color-input-text: #111827; /* gray-900 */
+  --color-input-placeholder: #9ca3af; /* gray-400 */
+}
+
+/* Dark theme CSS custom properties */
+.dark {
+  --color-bg-primary: #111827; /* gray-900 */
+  --color-bg-secondary: #1f2937; /* gray-800 */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #d1d5db; /* gray-300 */
+  --color-text-muted: #9ca3af; /* gray-400 */
+  --color-border-primary: #374151; /* gray-700 */
+  --color-border-secondary: #4b5563; /* gray-600 */
+  --color-input-bg: #1f2937; /* gray-800 */
+  --color-input-border: #4b5563; /* gray-600 */
+  --color-input-text: #ffffff;
+  --color-input-placeholder: #9ca3af; /* gray-400 */
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -9,6 +39,28 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  @apply bg-dark-bg-secondary text-dark-text-primary;
+}
+
+/* Global form input styles using custom color classes */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+textarea,
+select {
+  @apply bg-dark-input-bg border-dark-input-border text-dark-input-text placeholder-dark-input-placeholder;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  @apply border-blue-500 ring-blue-500;
 }
 
 code {
