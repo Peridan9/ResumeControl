@@ -183,7 +183,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 
 	// Check if company with this normalized name already exists for this user
 	existingCompany, err := h.queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
-		Name:   normalizedName,
+		Btrim:  normalizedName,
 		UserID: userID,
 	})
 	if err == nil {
@@ -209,7 +209,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 		if strings.Contains(errStr, "duplicate") || strings.Contains(errStr, "unique") {
 			// Fetch the company that was just created by another request
 			existingCompany, fetchErr := h.queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
-				Name:   normalizedName,
+				Btrim:  normalizedName,
 				UserID: userID,
 			})
 			if fetchErr == nil {
@@ -265,12 +265,21 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	// Get request context
 	ctx := c.Request.Context()
 
+	// Check if company exists and belongs to user
+	_, err = h.queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
+	if handleDatabaseError(c, err, "Company") {
+		return
+	}
+
 	// Normalize company name
 	normalizedName := normalizeCompanyName(req.Name)
 
 	// Check if another company with this normalized name already exists for this user
 	existingCompany, err := h.queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
-		Name:   normalizedName,
+		Btrim:  normalizedName,
 		UserID: userID,
 	})
 	if err == nil && existingCompany.ID != int32(id) {
@@ -317,6 +326,15 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 
 	// Get request context
 	ctx := c.Request.Context()
+
+	// Check if company exists and belongs to user
+	_, err = h.queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
+	if handleDatabaseError(c, err, "Company") {
+		return
+	}
 
 	// Delete company (verifies ownership via user_id)
 	err = h.queries.DeleteCompany(ctx, database.DeleteCompanyParams{

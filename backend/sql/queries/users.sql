@@ -29,3 +29,8 @@ UPDATE users
 SET last_login = CURRENT_TIMESTAMP
 WHERE id = $1;
 
+-- name: DeleteUser :exec
+-- Delete a user by ID (CASCADE will delete all related data)
+DELETE FROM users
+WHERE id = $1;
+

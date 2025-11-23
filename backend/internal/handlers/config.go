@@ -24,7 +24,10 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		// Auth routes (public - no authentication required)
+		// Apply rate limiting to prevent brute force attacks
+		// 5 requests per second, burst of 10 (allows short bursts)
 		authPublic := api.Group("/auth")
+		authPublic.Use(middleware.RateLimitMiddleware(5.0, 10))
 		{
 			authPublic.POST("/register", userHandler.Register)
 			authPublic.POST("/login", userHandler.Login)

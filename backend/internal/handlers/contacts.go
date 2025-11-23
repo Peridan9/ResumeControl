@@ -192,6 +192,15 @@ func (h *ContactHandler) DeleteContact(c *gin.Context) {
 		return
 	}
 
+	// Check if contact exists and belongs to user
+	_, err = h.queries.GetContactByIDAndUserID(ctx, database.GetContactByIDAndUserIDParams{
+		ID:     int32(contactID),
+		UserID: userID,
+	})
+	if handleDatabaseError(c, err, "Contact") {
+		return
+	}
+
 	// Delete contact (verifies ownership via user_id)
 	err = h.queries.DeleteContact(ctx, database.DeleteContactParams{
 		ID:     int32(contactID),

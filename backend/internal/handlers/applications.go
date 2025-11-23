@@ -389,6 +389,15 @@ func (h *ApplicationHandler) DeleteApplication(c *gin.Context) {
 	// Get request context
 	ctx := c.Request.Context()
 
+	// Check if application exists and belongs to user
+	_, err = h.queries.GetApplicationByIDAndUserID(ctx, database.GetApplicationByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
+	if handleDatabaseError(c, err, "Application") {
+		return
+	}
+
 	// Delete application (verifies ownership via user_id)
 	err = h.queries.DeleteApplication(ctx, database.DeleteApplicationParams{
 		ID:     int32(id),

@@ -19,6 +19,9 @@ func TestCreateContact(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-contacts-create@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -84,6 +87,7 @@ func TestCreateContact(t *testing.T) {
 			body, _ := json.Marshal(tt.body)
 			req := httptest.NewRequest("POST", "/api/contacts", bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+testUser.Token)
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -95,7 +99,10 @@ func TestCreateContact(t *testing.T) {
 				if w.Code == http.StatusCreated {
 					var contact database.Contact
 					if err := json.Unmarshal(w.Body.Bytes(), &contact); err == nil {
-						queries.DeleteContact(ctx, contact.ID)
+						queries.DeleteContact(ctx, database.DeleteContactParams{
+							ID:     contact.ID,
+							UserID: testUser.ID,
+						})
 					}
 				}
 			}
@@ -107,24 +114,36 @@ func TestGetAllContacts(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-contacts-getall@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test contacts
 	contact1, err := queries.CreateContact(ctx, database.CreateContactParams{
-		Name:  "John Doe",
-		Email: sql.NullString{String: "john@example.com", Valid: true},
+		Name:   "John Doe",
+		Email:  sql.NullString{String: "john@example.com", Valid: true},
+		UserID: testUser.ID,
 	})
 	require.NoError(t, err)
 
 	contact2, err := queries.CreateContact(ctx, database.CreateContactParams{
-		Name:  "Jane Smith",
-		Phone: sql.NullString{String: "+1234567890", Valid: true},
+		Name:   "Jane Smith",
+		Phone:  sql.NullString{String: "+1234567890", Valid: true},
+		UserID: testUser.ID,
 	})
 	require.NoError(t, err)
-	defer queries.DeleteContact(ctx, contact1.ID)
-	defer queries.DeleteContact(ctx, contact2.ID)
+	defer queries.DeleteContact(ctx, database.DeleteContactParams{
+		ID:     contact1.ID,
+		UserID: testUser.ID,
+	})
+	defer queries.DeleteContact(ctx, database.DeleteContactParams{
+		ID:     contact2.ID,
+		UserID: testUser.ID,
+	})
 
 	req := httptest.NewRequest("GET", "/api/contacts", nil)
+	req.Header.Set("Authorization", "Bearer "+testUser.Token)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -153,15 +172,22 @@ func TestGetContactByID(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-contacts-getbyid@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test contact
 	contact, err := queries.CreateContact(ctx, database.CreateContactParams{
-		Name:  "John Doe",
-		Email: sql.NullString{String: "john@example.com", Valid: true},
+		Name:   "John Doe",
+		Email:  sql.NullString{String: "john@example.com", Valid: true},
+		UserID: testUser.ID,
 	})
 	require.NoError(t, err)
-	defer queries.DeleteContact(ctx, contact.ID)
+	defer queries.DeleteContact(ctx, database.DeleteContactParams{
+		ID:     contact.ID,
+		UserID: testUser.ID,
+	})
 
 	tests := []struct {
 		name           string
@@ -196,6 +222,7 @@ func TestGetContactByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/api/contacts/"+tt.contactID, nil)
+			req.Header.Set("Authorization", "Bearer "+testUser.Token)
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -212,15 +239,22 @@ func TestUpdateContact(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-contacts-update@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	// Create test contact
 	contact, err := queries.CreateContact(ctx, database.CreateContactParams{
-		Name:  "John Doe",
-		Email: sql.NullString{String: "john@example.com", Valid: true},
+		Name:   "John Doe",
+		Email:  sql.NullString{String: "john@example.com", Valid: true},
+		UserID: testUser.ID,
 	})
 	require.NoError(t, err)
-	defer queries.DeleteContact(ctx, contact.ID)
+	defer queries.DeleteContact(ctx, database.DeleteContactParams{
+		ID:     contact.ID,
+		UserID: testUser.ID,
+	})
 
 	tests := []struct {
 		name           string
@@ -271,6 +305,7 @@ func TestUpdateContact(t *testing.T) {
 			body, _ := json.Marshal(tt.body)
 			req := httptest.NewRequest("PUT", "/api/contacts/"+tt.contactID, bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+testUser.Token)
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -287,6 +322,9 @@ func TestDeleteContact(t *testing.T) {
 	router, queries, db := setupTestRouter(t)
 	defer db.Close()
 
+	// Create a test user
+	testUser, cleanup := createTestUser(t, queries, db, "test-contacts-delete@example.com")
+	defer cleanup()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -299,7 +337,8 @@ func TestDeleteContact(t *testing.T) {
 			name: "Delete existing contact",
 			setupFunc: func() int32 {
 				contact, err := queries.CreateContact(ctx, database.CreateContactParams{
-					Name: "John Doe",
+					Name:   "John Doe",
+					UserID: testUser.ID,
 				})
 				require.NoError(t, err)
 				return contact.ID
@@ -328,6 +367,7 @@ func TestDeleteContact(t *testing.T) {
 			}
 
 			req := httptest.NewRequest("DELETE", "/api/contacts/"+tt.contactID, nil)
+			req.Header.Set("Authorization", "Bearer "+testUser.Token)
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -336,7 +376,10 @@ func TestDeleteContact(t *testing.T) {
 
 			// Verify deletion for successful case
 			if tt.expectedStatus == http.StatusOK && tt.setupFunc != nil {
-				_, err := queries.GetContactByID(ctx, contactID)
+				_, err := queries.GetContactByIDAndUserID(ctx, database.GetContactByIDAndUserIDParams{
+					ID:     contactID,
+					UserID: testUser.ID,
+				})
 				assert.Error(t, err) // Should not exist
 			}
 		})

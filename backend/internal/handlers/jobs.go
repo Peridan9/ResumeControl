@@ -295,6 +295,15 @@ func (h *JobHandler) DeleteJob(c *gin.Context) {
 	// Get request context
 	ctx := c.Request.Context()
 
+	// Check if job exists and belongs to user (through application)
+	_, err = h.queries.GetJobByIDAndUserID(ctx, database.GetJobByIDAndUserIDParams{
+		ID:     int32(id),
+		UserID: userID,
+	})
+	if handleDatabaseError(c, err, "Job") {
+		return
+	}
+
 	// Delete job (verifies ownership through application's user_id)
 	err = h.queries.DeleteJob(ctx, database.DeleteJobParams{
 		ID:     int32(id),

@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
@@ -72,6 +74,26 @@ func TestSqlcQueries(t *testing.T) {
 
 	ctx := context.Background()
 
+	// First, create a test user (required for all company operations)
+	// Use a unique email for each test run to avoid conflicts
+	uniqueEmail := fmt.Sprintf("test-db-queries-%d@example.com", time.Now().UnixNano())
+	testUser, err := queries.CreateUser(ctx, database.CreateUserParams{
+		Email:        uniqueEmail,
+		PasswordHash: "test-hash",
+		Name:         sql.NullString{String: "Test User", Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	// Cleanup: Delete test user at the end
+	defer func() {
+		_, err := db.ExecContext(ctx, "DELETE FROM users WHERE id = $1", testUser.ID)
+		if err != nil {
+			t.Logf("Warning: Failed to cleanup test user %d: %v", testUser.ID, err)
+		}
+	}()
+
 	// Test 1: Create a company
 	companyName := "Test Company"
 	companyWebsite := "https://testcompany.com"
@@ -79,6 +101,7 @@ func TestSqlcQueries(t *testing.T) {
 	createdCompany, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    companyName,
 		Website: sql.NullString{String: companyWebsite, Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create company: %v", err)
@@ -92,8 +115,11 @@ func TestSqlcQueries(t *testing.T) {
 	}
 	t.Logf("✅ Created company: ID=%d, Name=%s", createdCompany.ID, createdCompany.Name)
 
-	// Test 2: Get company by ID
-	retrievedCompany, err := queries.GetCompanyByID(ctx, createdCompany.ID)
+	// Test 2: Get company by ID and UserID
+	retrievedCompany, err := queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     createdCompany.ID,
+		UserID: testUser.ID,
+	})
 	if err != nil {
 		t.Fatalf("Failed to get company by ID: %v", err)
 	}
@@ -116,7 +142,10 @@ func TestSqlcQueries(t *testing.T) {
 	}
 	
 	for _, testName := range testCases {
-		foundCompany, err := queries.GetCompanyByName(ctx, testName)
+		foundCompany, err := queries.GetCompanyByNameAndUserID(ctx, database.GetCompanyByNameAndUserIDParams{
+			Btrim:  testName,
+			UserID: testUser.ID,
+		})
 		if err != nil {
 			t.Fatalf("Failed to get company by name '%s': %v", testName, err)
 		}
@@ -127,8 +156,8 @@ func TestSqlcQueries(t *testing.T) {
 		t.Logf("✅ Found company using name: '%s' (normalized)", testName)
 	}
 
-	// Test 4: Get all companies
-	allCompanies, err := queries.GetAllCompanies(ctx)
+	// Test 4: Get all companies by UserID
+	allCompanies, err := queries.GetCompaniesByUserID(ctx, testUser.ID)
 	if err != nil {
 		t.Fatalf("Failed to get all companies: %v", err)
 	}
@@ -158,6 +187,7 @@ func TestSqlcQueries(t *testing.T) {
 		ID:      createdCompany.ID,
 		Name:    updatedName,
 		Website: sql.NullString{String: updatedWebsite, Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err != nil {
 		t.Fatalf("Failed to update company: %v", err)
@@ -169,16 +199,20 @@ func TestSqlcQueries(t *testing.T) {
 	t.Logf("✅ Updated company: ID=%d, New Name=%s", updatedCompany.ID, updatedCompany.Name)
 
 	// Test 6: Test unique constraint (try to create duplicate with different case)
-	// This should fail due to the unique index on LOWER(TRIM(name))
+	// This should fail due to the unique index on LOWER(TRIM(name)) per user
 	// Use the updated name since that's what's currently in the DB
 	duplicateCompany, err := queries.CreateCompany(ctx, database.CreateCompanyParams{
 		Name:    strings.ToUpper(updatedName), // Different case of updated name
 		Website: sql.NullString{String: "https://duplicate.com", Valid: true},
+		UserID:  testUser.ID,
 	})
 	if err == nil {
 		// If no error, we have a problem - should have been prevented by unique index
 		// Clean up the duplicate
-		queries.DeleteCompany(ctx, duplicateCompany.ID)
+		queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+			ID:     duplicateCompany.ID,
+			UserID: testUser.ID,
+		})
 		t.Error("Expected error when creating duplicate company name (different case), but got none")
 	} else {
 		// Expected error - unique constraint violation
@@ -189,17 +223,23 @@ func TestSqlcQueries(t *testing.T) {
 	}
 
 	// Test 7: Delete company (cleanup)
-	err = queries.DeleteCompany(ctx, createdCompany.ID)
+	err = queries.DeleteCompany(ctx, database.DeleteCompanyParams{
+		ID:     createdCompany.ID,
+		UserID: testUser.ID,
+	})
 	if err != nil {
 		t.Fatalf("Failed to delete company: %v", err)
 	}
 
 	// Verify it's deleted
-	_, err = queries.GetCompanyByID(ctx, createdCompany.ID)
+	_, err = queries.GetCompanyByIDAndUserID(ctx, database.GetCompanyByIDAndUserIDParams{
+		ID:     createdCompany.ID,
+		UserID: testUser.ID,
+	})
 	if err == nil {
-		t.Error("Company should be deleted, but GetCompanyByID returned no error")
+		t.Error("Company should be deleted, but GetCompanyByIDAndUserID returned no error")
 	} else {
-		t.Logf("✅ Verified company deletion: GetCompanyByID returned error as expected")
+		t.Logf("✅ Verified company deletion: GetCompanyByIDAndUserID returned error as expected")
 	}
 	t.Logf("✅ Deleted company: ID=%d", createdCompany.ID)
 }
