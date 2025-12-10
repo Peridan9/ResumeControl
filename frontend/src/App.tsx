@@ -12,6 +12,7 @@ import CompanyDetail from './pages/CompanyDetail'
 import ContactDetail from './pages/ContactDetail'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Landing from './pages/Landing'
 
 // Create a QueryClient instance with default options
 const queryClient = new QueryClient({
@@ -41,7 +42,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>
@@ -52,6 +53,7 @@ function AppRoutes() {
     <Router>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<Landing />} />
         <Route
           path="/login"
           element={
@@ -71,7 +73,7 @@ function AppRoutes() {
 
         {/* Protected routes */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Layout>

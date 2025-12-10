@@ -17,7 +17,7 @@ export default function Register() {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    navigate('/')
+    navigate('/dashboard')
     return null
   }
 
@@ -44,7 +44,7 @@ export default function Register() {
     try {
       await register(email, password, name || undefined)
       // Redirect to dashboard on success
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed. Please try again.')
     } finally {

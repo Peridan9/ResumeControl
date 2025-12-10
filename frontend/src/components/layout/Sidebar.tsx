@@ -7,7 +7,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Squares2X2Icon },
+  { name: 'Dashboard', href: '/dashboard', icon: Squares2X2Icon },
   { name: 'Companies', href: '/companies', icon: BuildingOfficeIcon },
   { name: 'Contacts', href: '/contacts', icon: UserIcon },
   { name: 'Applications', href: '/applications', icon: DocumentTextIcon },

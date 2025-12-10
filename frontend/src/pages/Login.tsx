@@ -16,7 +16,7 @@ export default function Login() {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    navigate('/')
+    navigate('/dashboard')
     return null
   }
 
@@ -28,7 +28,7 @@ export default function Login() {
     try {
       await login(email, password)
       // Redirect to dashboard on success
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
     } finally {
