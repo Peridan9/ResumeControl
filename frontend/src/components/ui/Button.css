@@ -65,12 +65,12 @@
   animation: stripe-slide 12s infinite linear forwards;
 }
 
-/* Danger variant stripe */
+/* Danger variant stripe - same as secondary by default */
 .btn-stripe-danger::after {
   background-image: repeating-linear-gradient(
     45deg,
-    #dc2626, /* red-600 */
-    #dc2626 1px,
+    #9ca3af, /* gray-400 */
+    #9ca3af 1px,
     transparent 2px,
     transparent 5px
   );
@@ -84,6 +84,29 @@
     transparent 2px,
     transparent 5px
   );
-  border-top-color: #991b1b; /* red-800 */
+  border-top-color: #6b7280; /* gray-500 */
+  animation: stripe-slide 12s infinite linear forwards;
+}
+
+/* Success variant stripe - same as secondary by default */
+.btn-stripe-success::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #9ca3af, /* gray-400 */
+    #9ca3af 1px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+.btn-stripe-success:hover::after {
+  background-image: repeating-linear-gradient(
+    45deg,
+    #ffffff,
+    #ffffff 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-top-color: #6b7280; /* gray-500 */
   animation: stripe-slide 12s infinite linear forwards;
 }

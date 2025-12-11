@@ -28,11 +28,20 @@ export default function Navbar() {
   if (isLandingPage) {
     return (
       <nav className="bg-white dark:bg-gray-800 shadow-sm relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ResumeControl</h1>
             <div className="flex items-center gap-4">
-              {/* Dark Mode Toggle Button */}
+              <Link to="/login">
+                <Button variant="secondary" className="px-6 py-2 text-sm">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button className="px-6 py-2 text-sm">Get Started</Button>
+              </Link>
+              
+              {/* Dark Mode Toggle Button - moved to the right */}
               <button
                 onClick={toggleTheme}
                 className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -44,16 +53,6 @@ export default function Navbar() {
                   <MoonIcon className="w-5 h-5" />
                 )}
               </button>
-              
-              <Link
-                to="/login"
-                className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-4 py-2"
-              >
-                Sign In
-              </Link>
-              <Link to="/register">
-                <Button>Get Started</Button>
-              </Link>
             </div>
           </div>
         </div>
@@ -64,7 +63,7 @@ export default function Navbar() {
   // Protected routes variant
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/dashboard" className="text-xl font-bold text-gray-900 dark:text-white">
@@ -72,7 +71,24 @@ export default function Navbar() {
             </Link>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Dark Mode Toggle Button */}
+            {isAuthenticated && user ? (
+              <>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  {user.name || user.email}
+                </span>
+                <Button
+                  variant="danger"
+                  onClick={handleLogout}
+                  className="!px-6 !py-2 !text-sm !border !font-normal"
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <span className="text-sm text-gray-600 dark:text-gray-300">Job Application Manager</span>
+            )}
+            
+            {/* Dark Mode Toggle Button - moved to the right */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -84,23 +100,6 @@ export default function Navbar() {
                 <MoonIcon className="w-5 h-5" />
               )}
             </button>
-            
-            {isAuthenticated && user ? (
-              <>
-                <span className="text-sm text-gray-600 dark:text-gray-300">
-                  {user.name || user.email}
-                </span>
-                <Button
-                  variant="secondary"
-                  onClick={handleLogout}
-                  className="text-sm"
-                >
-                  Logout
-                </Button>
-              </>
-            ) : (
-              <span className="text-sm text-gray-600 dark:text-gray-300">Job Application Manager</span>
-            )}
           </div>
         </div>
       </div>

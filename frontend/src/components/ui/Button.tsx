@@ -2,7 +2,7 @@ import { ReactNode, ButtonHTMLAttributes } from 'react'
 import './Button.css'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger'
+  variant?: 'primary' | 'secondary' | 'danger' | 'success'
   children: ReactNode
 }
 
@@ -67,16 +67,30 @@ export default function Button({
     danger: [
       'bg-white',
       'dark:bg-gray-800',
-      'text-red-600',
-      'dark:text-red-400',
-      'border-red-600',
-      'dark:border-red-500',
+      'text-gray-400',
+      'dark:text-gray-400',
+      'border-gray-400',
+      'dark:border-gray-500',
       'hover:bg-red-600',
       'dark:hover:bg-red-600',
       'hover:text-white',
       'dark:hover:text-white',
-      'hover:border-red-800',
-      'dark:hover:border-red-700',
+      'hover:border-gray-500',
+      'dark:hover:border-gray-400',
+    ],
+    success: [
+      'bg-white',
+      'dark:bg-gray-800',
+      'text-gray-400',
+      'dark:text-gray-400',
+      'border-gray-400',
+      'dark:border-gray-500',
+      'hover:bg-green-600',
+      'dark:hover:bg-green-600',
+      'hover:text-white',
+      'dark:hover:text-white',
+      'hover:border-gray-500',
+      'dark:hover:border-gray-400',
     ],
   }
 

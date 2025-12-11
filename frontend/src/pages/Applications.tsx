@@ -189,7 +189,7 @@ export default function Applications() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
-        <Button variant="primary" onClick={handleCreate}>
+        <Button variant="success" onClick={handleCreate}>
           Add Application
         </Button>
       </div>
