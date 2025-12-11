@@ -33,38 +33,38 @@ export default function DataTable<T>({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-12 text-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
       </div>
     )
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-12 text-center">
-        <p className="text-gray-600">{emptyMessage}</p>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+        <p className="text-gray-600 dark:text-gray-400">{emptyMessage}</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       {/* Filter Toggle Button */}
       {filter && (
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             aria-expanded={isFilterOpen}
             aria-label={filterLabel}
           >
             <div className="flex items-center space-x-2">
-              <FunnelIcon className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">{filterLabel}</span>
+              <FunnelIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{filterLabel}</span>
             </div>
             <svg
-              className={`w-5 h-5 text-gray-500 transition-transform ${
+              className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${
                 isFilterOpen ? 'transform rotate-180' : ''
               }`}
               fill="none"
@@ -86,7 +86,7 @@ export default function DataTable<T>({
               isFilterOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
             }`}
           >
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
               {filter}
             </div>
           </div>
@@ -95,13 +95,13 @@ export default function DataTable<T>({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                  className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${
                     column.className || ''
                   }`}
                 >
@@ -110,19 +110,19 @@ export default function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             {data.map((item) => (
               <tr
                 key={rowKey(item)}
                 className={`transition-colors ${
-                  onRowClick ? 'hover:bg-gray-50 cursor-pointer' : ''
+                  onRowClick ? 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer' : ''
                 }`}
                 onClick={() => onRowClick?.(item)}
               >
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className={`px-6 py-4 text-sm text-gray-900 ${
+                    className={`px-6 py-4 text-sm text-gray-900 dark:text-gray-100 ${
                       column.className || ''
                     }`}
                   >
