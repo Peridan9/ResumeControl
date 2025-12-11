@@ -9,12 +9,31 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState<boolean>(() => {
-    // Check localStorage first, then system preference
-    const stored = localStorage.getItem('theme')
-    if (stored) {
-      return stored === 'dark'
+    // Guard against SSR - check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      return false // Default to light theme during SSR
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+
+    // Check localStorage first, then system preference
+    try {
+      if (window.localStorage) {
+        const stored = window.localStorage.getItem('theme')
+        if (stored) {
+          return stored === 'dark'
+        }
+      }
+    } catch (e) {
+      // localStorage may be unavailable due to permissions or other issues
+      // Fall through to system preference check
+    }
+
+    // Check system preference if matchMedia is available
+    if (window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+
+    // Default to light theme if all checks fail
+    return false
   })
 
   // Apply theme on mount
@@ -26,7 +45,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.documentElement.classList.remove('dark')
       localStorage.setItem('theme', 'light')
     }
-  }, []) // Only run on mount
+  }, [isDark])
 
   const toggleTheme = () => {
     setIsDark((prev) => {
