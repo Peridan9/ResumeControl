@@ -127,7 +127,7 @@ func (q *Queries) GetApplicationByIDAndUserID(ctx context.Context, arg GetApplic
 const getApplicationsByStatusAndUserID = `-- name: GetApplicationsByStatusAndUserID :many
 SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE status = $1 AND user_id = $2
-ORDER BY applied_date DESC
+ORDER BY updated_at DESC NULLS LAST, created_at DESC
 `
 
 type GetApplicationsByStatusAndUserIDParams struct {
@@ -171,7 +171,7 @@ func (q *Queries) GetApplicationsByStatusAndUserID(ctx context.Context, arg GetA
 const getApplicationsByStatusAndUserIDPaginated = `-- name: GetApplicationsByStatusAndUserIDPaginated :many
 SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE status = $1 AND user_id = $2
-ORDER BY applied_date DESC
+ORDER BY updated_at DESC NULLS LAST, created_at DESC
 LIMIT $3 OFFSET $4
 `
 
@@ -223,7 +223,7 @@ func (q *Queries) GetApplicationsByStatusAndUserIDPaginated(ctx context.Context,
 const getApplicationsByUserID = `-- name: GetApplicationsByUserID :many
 SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE user_id = $1
-ORDER BY applied_date DESC
+ORDER BY updated_at DESC NULLS LAST, created_at DESC
 `
 
 // Get all applications for a specific user, ordered by applied_date (newest first)
@@ -262,7 +262,7 @@ func (q *Queries) GetApplicationsByUserID(ctx context.Context, userID int32) ([]
 const getApplicationsByUserIDPaginated = `-- name: GetApplicationsByUserIDPaginated :many
 SELECT id, status, applied_date, notes, created_at, updated_at, contact_id, user_id FROM applications
 WHERE user_id = $1
-ORDER BY applied_date DESC
+ORDER BY updated_at DESC NULLS LAST, created_at DESC
 LIMIT $2 OFFSET $3
 `
 

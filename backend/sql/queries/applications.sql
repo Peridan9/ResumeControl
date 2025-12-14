@@ -2,13 +2,13 @@
 -- Get all applications for a specific user, ordered by applied_date (newest first)
 SELECT * FROM applications
 WHERE user_id = $1
-ORDER BY applied_date DESC;
+ORDER BY updated_at DESC NULLS LAST, created_at DESC;
 
 -- name: GetApplicationsByUserIDPaginated :many
 -- Get paginated applications for a specific user, ordered by applied_date (newest first)
 SELECT * FROM applications
 WHERE user_id = $1
-ORDER BY applied_date DESC
+ORDER BY updated_at DESC NULLS LAST, created_at DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountApplicationsByUserID :one
@@ -36,13 +36,13 @@ WHERE j.application_id = $1 AND a.user_id = $2;
 -- Get all applications with a specific status for a specific user
 SELECT * FROM applications
 WHERE status = $1 AND user_id = $2
-ORDER BY applied_date DESC;
+ORDER BY updated_at DESC NULLS LAST, created_at DESC;
 
 -- name: GetApplicationsByStatusAndUserIDPaginated :many
 -- Get paginated applications with a specific status for a specific user
 SELECT * FROM applications
 WHERE status = $1 AND user_id = $2
-ORDER BY applied_date DESC
+ORDER BY updated_at DESC NULLS LAST, created_at DESC
 LIMIT $3 OFFSET $4;
 
 -- name: CreateApplication :one
