@@ -1,28 +1,17 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import Button from '../ui/Button'
+import UserMenu from './UserMenu'
 
 export default function Navbar() {
-  const { user, logout, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { isDark, toggleTheme } = useTheme()
-  const navigate = useNavigate()
   const location = useLocation()
   
   // Check if we're on the landing page
   const isLandingPage = location.pathname === '/'
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-      navigate('/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-      // Still navigate to login even if logout fails
-      navigate('/login')
-    }
-  }
 
   // Landing page variant
   if (isLandingPage) {
@@ -71,19 +60,8 @@ export default function Navbar() {
             </Link>
           </div>
           <div className="flex items-center space-x-4">
-            {isAuthenticated && user ? (
-              <>
-                <span className="text-sm text-gray-600 dark:text-gray-300">
-                  {user.name || user.email}
-                </span>
-                <Button
-                  variant="danger"
-                  onClick={handleLogout}
-                  className="!px-6 !py-2 !text-sm !border !font-normal"
-                >
-                  Logout
-                </Button>
-              </>
+            {isAuthenticated ? (
+              <UserMenu />
             ) : (
               <span className="text-sm text-gray-600 dark:text-gray-300">Job Application Manager</span>
             )}

@@ -74,14 +74,36 @@ func main() {
 		frontendURL = "http://localhost:3000"
 	}
 
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{frontendURL},
+	// In development, allow all origins to support different browsers/IDEs (like Cursor's browser)
+	// In production, use specific origins for security
+	corsConfig := cors.Config{
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "accept", "origin", "Cache-Control", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-	}))
+	}
+
+	if env == "production" {
+		// Production: only allow specific frontend URL with credentials
+		corsConfig.AllowOrigins = []string{frontendURL}
+		corsConfig.AllowCredentials = true
+	} else {
+		// Development: allow all origins (including Cursor's browser, Chrome, etc.)
+		// Use AllowOriginFunc to dynamically allow any origin in development
+		corsConfig.AllowOriginFunc = func(origin string) bool {
+			// Log the origin for debugging (can be removed later)
+			if origin != "" {
+				log.Printf("CORS: Allowing origin: %s", origin)
+			} else {
+				log.Printf("CORS: Allowing empty origin (likely Cursor browser or similar)")
+			}
+			// Allow all origins in development
+			return true
+		}
+		corsConfig.AllowCredentials = true
+	}
+
+	r.Use(cors.New(corsConfig))
 
 	// Health check endpoint (now includes DB status)
 	r.GET("/api/health", func(c *gin.Context) {
