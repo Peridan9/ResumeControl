@@ -59,7 +59,8 @@ function normalizeNullInt32(value: BackendNullInt32): NormalizedInt32 {
 }
 
 // Backend entity types (as received from API)
-interface BackendCompany {
+// Exported for use in api.ts to provide type safety
+export interface BackendCompany {
   id: number
   name: string
   website: BackendNullString
@@ -67,7 +68,7 @@ interface BackendCompany {
   updated_at: BackendNullTime
 }
 
-interface BackendJob {
+export interface BackendJob {
   id: number
   application_id: number
   company_id: number
@@ -79,7 +80,7 @@ interface BackendJob {
   updated_at: BackendNullTime
 }
 
-interface BackendApplication {
+export interface BackendApplication {
   id: number
   contact_id?: BackendNullInt32
   status: string
@@ -89,7 +90,7 @@ interface BackendApplication {
   updated_at: BackendNullTime
 }
 
-interface BackendContact {
+export interface BackendContact {
   id: number
   name: string
   email: BackendNullString

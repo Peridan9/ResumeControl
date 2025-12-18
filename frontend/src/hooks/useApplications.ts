@@ -99,18 +99,11 @@ export function useApplications() {
       const previousCompanies = queryClient.getQueryData<Company[]>(['companies'])
 
       // Create optimistic IDs
-      const tempCompanyId = Date.now()
-      const tempApplicationId = Date.now() + 1
-      const tempJobId = Date.now() + 2
-
-      // Create optimistic company
-      const optimisticCompany: Company = {
-        id: tempCompanyId,
-        name: formData.companyName,
-        website: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      const timestamp = Date.now()
+      const random = Math.random()
+      const tempCompanyId = -(timestamp * 1000 + Math.floor(random * 1000))
+      const tempApplicationId = -(timestamp * 1000 + Math.floor(random * 1000) + 1)
+      const tempJobId = -(timestamp * 1000 + Math.floor(random * 1000) + 2)
 
       // Create optimistic application
       const optimisticApplication: Application = {
@@ -123,7 +116,7 @@ export function useApplications() {
         updated_at: new Date().toISOString(),
       }
 
-      // Create optimistic job
+      // Create optimistic job (using temp company ID - company will be added in onSuccess)
       const optimisticJob: Job = {
         id: tempJobId,
         application_id: tempApplicationId,
@@ -136,8 +129,7 @@ export function useApplications() {
         updated_at: new Date().toISOString(),
       }
 
-      // Optimistically update all caches
-      queryClient.setQueryData<Company[]>(['companies'], (old = []) => [...old, optimisticCompany])
+      // Optimistically update caches (skip company - will be added in onSuccess to avoid duplicates)
       queryClient.setQueryData<Application[]>(['applications'], (old = []) => [...old, optimisticApplication])
       queryClient.setQueryData<Job[]>(['jobs'], (old = []) => [...old, optimisticJob])
 
@@ -166,17 +158,33 @@ export function useApplications() {
     onSuccess: (data, _formData, context) => {
       // Replace optimistic entries with real ones from server
       if (context) {
-        // Replace optimistic company
-        queryClient.setQueryData<Company[]>(['companies'], (old = []) =>
-          old.map((company) => (company.id === context.tempCompanyId ? data.company : company))
-        )
+        // Helper to normalize company name (matches backend logic)
+        const normalizeName = (name: string) => name.trim().toLowerCase()
+        const serverCompanyNormalized = normalizeName(data.company.name)
+
+        // Update companies cache - check if company already exists by normalized name
+        queryClient.setQueryData<Company[]>(['companies'], (old = []) => {
+          const existingIndex = old.findIndex(
+            (c) => normalizeName(c.name) === serverCompanyNormalized
+          )
+
+          if (existingIndex >= 0) {
+            // Company exists - update it with server response
+            return old.map((c, idx) =>
+              idx === existingIndex ? data.company : c
+            )
+          } else {
+            // Company doesn't exist - add it
+            return [...old, data.company]
+          }
+        })
 
         // Replace optimistic application
         queryClient.setQueryData<Application[]>(['applications'], (old = []) =>
           old.map((app) => (app.id === context.tempApplicationId ? data.application : app))
         )
 
-        // Replace optimistic job
+        // Replace optimistic job with real job (company_id will be correct from server)
         queryClient.setQueryData<Job[]>(['jobs'], (old = []) =>
           old.map((job) => (job.id === context.tempJobId ? data.job : job))
         )
