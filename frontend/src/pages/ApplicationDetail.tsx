@@ -8,6 +8,8 @@ import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ApplicationForm from '../components/applications/ApplicationForm'
+import { getStatusColor } from '../constants/status'
+import { MODAL_CLOSE_DELAY } from '../constants/timing'
 
 export default function ApplicationDetail() {
   const { id } = useParams<{ id: string }>()
@@ -130,14 +132,7 @@ export default function ApplicationDetail() {
   }
 
   const getStatusBadgeColor = (status: string): string => {
-    const statusColors: Record<string, string> = {
-      applied: 'bg-blue-100 text-blue-800',
-      interview: 'bg-yellow-100 text-yellow-800',
-      offer: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      withdrawn: 'bg-gray-100 text-gray-800',
-    }
-    return statusColors[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
+    return getStatusColor(status)
   }
 
   const handleEdit = () => {
@@ -208,7 +203,7 @@ export default function ApplicationDetail() {
       setTimeout(() => {
         handleCloseEditModal()
         setSuccessMessage(null)
-      }, 500)
+      }, MODAL_CLOSE_DELAY)
     },
     onError: (err) => {
       setMutationError(err instanceof Error ? err.message : 'Failed to update application')

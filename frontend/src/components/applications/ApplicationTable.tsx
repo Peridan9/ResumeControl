@@ -16,6 +16,7 @@ import { nullTimeToString, nullStringToString } from '../../utils/helpers'
 import Tooltip from '../ui/Tooltip'
 import DataTable, { Column } from '../ui/DataTable'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { STATUS_OPTIONS_WITH_ALL, STATUS_COLORS } from '../../constants/status'
 
 interface ApplicationTableProps {
   applications: Application[]
@@ -31,15 +32,7 @@ interface ApplicationTableProps {
   isDeleting?: boolean
 }
 
-export const STATUS_OPTIONS = [
-  { value: '', label: 'All Statuses' },
-  { value: 'applied', label: 'Applied' },
-  { value: 'interview', label: 'Interview' },
-  { value: 'offer', label: 'Offer' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-  { value: 'accepted', label: 'Accepted' },
-]
+export const STATUS_OPTIONS = STATUS_OPTIONS_WITH_ALL
 
 export default function ApplicationTable({
   applications,
@@ -137,15 +130,7 @@ export default function ApplicationTable({
 
   // Helper function to get status badge color
   const getStatusBadgeColor = (status: string): string => {
-    const statusColors: Record<string, string> = {
-      applied: 'bg-blue-100 text-blue-800',
-      interview: 'bg-yellow-100 text-yellow-800',
-      offer: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-      withdrawn: 'bg-gray-100 text-gray-800',
-      accepted: 'bg-green-100 text-green-800',
-    }
-    return statusColors[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
+    return STATUS_COLORS[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
   }
 
   const columns: Column<Application>[] = [

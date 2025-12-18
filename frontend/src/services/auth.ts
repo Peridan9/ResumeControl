@@ -1,5 +1,7 @@
 // Authentication service for user registration, login, and token management
 
+import { fetchAPI } from './fetch'
+
 const API_BASE_URL = '/api'
 
 // User type matching backend response
@@ -53,29 +55,6 @@ export interface UpdateUserRequest {
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 
-// Generic fetch wrapper with error handling
-async function fetchAPI<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  })
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      error: 'An error occurred',
-      details: response.statusText,
-    }))
-    throw new Error(error.error || error.details || 'Request failed')
-  }
-
-  return response.json()
-}
 
 // Token management functions
 export const tokenStorage = {
@@ -104,6 +83,8 @@ export const authAPI = {
     const response = await fetchAPI<RegisterResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
+      addAuthHeader: false,
+      retryOn401: false,
     })
     
     // Store tokens on successful registration
@@ -121,6 +102,8 @@ export const authAPI = {
     const response = await fetchAPI<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
+      addAuthHeader: false,
+      retryOn401: false,
     })
     
     // Store tokens on successful login
@@ -133,22 +116,36 @@ export const authAPI = {
 
   /**
    * Refresh access token using refresh token
+   * Note: Uses direct fetch to avoid circular dependency with fetchAPI
    */
   refreshToken: async (refreshToken: string): Promise<RefreshResponse> => {
-    const response = await fetchAPI<RefreshResponse>('/auth/refresh', {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ refresh_token: refreshToken }),
     })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        error: 'An error occurred',
+        details: response.statusText,
+      }))
+      throw new Error(error.error || error.details || 'Request failed')
+    }
+
+    const data = await response.json()
     
     // Update access token in storage
-    if (response.access_token) {
-      const refreshToken = tokenStorage.getRefreshToken()
-      if (refreshToken) {
-        tokenStorage.setTokens(response.access_token, refreshToken)
+    if (data.access_token) {
+      const storedRefreshToken = tokenStorage.getRefreshToken()
+      if (storedRefreshToken) {
+        tokenStorage.setTokens(data.access_token, storedRefreshToken)
       }
     }
     
-    return response
+    return data
   },
 
   /**
@@ -159,6 +156,8 @@ export const authAPI = {
       await fetchAPI<void>('/auth/logout', {
         method: 'POST',
         body: JSON.stringify({ refresh_token: refreshToken }),
+        addAuthHeader: false,
+        retryOn401: false,
       })
     } catch (error) {
       // Even if logout fails, clear tokens locally
@@ -173,16 +172,8 @@ export const authAPI = {
    * Get current authenticated user information
    */
   getCurrentUser: async (): Promise<User> => {
-    const accessToken = tokenStorage.getAccessToken()
-    if (!accessToken) {
-      throw new Error('No access token available')
-    }
-
     return fetchAPI<User>('/auth/me', {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
     })
   },
 
@@ -190,16 +181,8 @@ export const authAPI = {
    * Update current user information
    */
   updateUser: async (data: UpdateUserRequest): Promise<User> => {
-    const accessToken = tokenStorage.getAccessToken()
-    if (!accessToken) {
-      throw new Error('No access token available')
-    }
-
     return fetchAPI<User>('/auth/me', {
       method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
       body: JSON.stringify(data),
     })
   },

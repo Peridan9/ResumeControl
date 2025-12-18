@@ -1,7 +1,10 @@
-import { useState, FormEvent, useEffect, useRef } from 'react'
+import { useState, FormEvent } from 'react'
 import type { Application, Job, Company, Contact } from '../../types'
 import { nullStringToString } from '../../utils/helpers'
 import Button from '../ui/Button'
+import { STATUS_OPTIONS } from '../../constants/status'
+import { DEBOUNCE_DELAY } from '../../constants/timing'
+import { useFormDraft } from '../../hooks/useFormDraft'
 
 interface ApplicationFormProps {
   application?: Application | null
@@ -23,17 +26,9 @@ interface ApplicationFormProps {
   isLoading?: boolean
 }
 
-const STATUS_OPTIONS = [
-  { value: 'applied', label: 'Applied' },
-  { value: 'interview', label: 'Interview' },
-  { value: 'offer', label: 'Offer' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'withdrawn', label: 'Withdrawn' },
-]
-
 const STORAGE_KEY = 'applicationFormDraft'
 
-interface FormDraft {
+interface FormData {
   companyName: string
   jobTitle: string
   jobDescription: string
@@ -68,65 +63,6 @@ export default function ApplicationForm({
     return today.toISOString().split('T')[0]
   }
 
-  // Load draft from sessionStorage on mount (only for create mode)
-  const loadDraft = (): Partial<FormDraft> | null => {
-    if (isEditMode) return null // Don't load draft in edit mode
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    } catch (error) {
-      console.error('Failed to load draft from sessionStorage:', error)
-    }
-    return null
-  }
-
-  // Save draft to sessionStorage (only for create mode)
-  const saveDraft = (data: FormDraft) => {
-    if (isEditMode) return // Don't save draft in edit mode
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    } catch (error) {
-      console.error('Failed to save draft to sessionStorage:', error)
-    }
-  }
-
-  // Clear draft from sessionStorage
-  const clearDraft = () => {
-    try {
-      sessionStorage.removeItem(STORAGE_KEY)
-    } catch (error) {
-      console.error('Failed to clear draft from sessionStorage:', error)
-    }
-  }
-
-  // Initialize form values: use application data if editing, otherwise use draft or defaults
-  const draft = loadDraft()
-  const [companyName, setCompanyName] = useState(
-    isEditMode && company ? company.name : draft?.companyName || ''
-  )
-  const [jobTitle, setJobTitle] = useState(
-    isEditMode && job ? job.title : draft?.jobTitle || ''
-  )
-  const [jobDescription, setJobDescription] = useState(
-    isEditMode && job ? nullStringToString(job.description) || '' : draft?.jobDescription || ''
-  )
-  const [jobRequirements, setJobRequirements] = useState(
-    isEditMode && job ? nullStringToString(job.requirements) || '' : draft?.jobRequirements || ''
-  )
-  const [jobLocation, setJobLocation] = useState(
-    isEditMode && job ? nullStringToString(job.location) || '' : draft?.jobLocation || ''
-  )
-  const [status, setStatus] = useState(
-    isEditMode && application ? application.status : draft?.status || 'applied'
-  )
-  const [appliedDate, setAppliedDate] = useState(
-    isEditMode ? getDefaultDate() : draft?.appliedDate || getDefaultDate()
-  )
-  const [notes, setNotes] = useState(
-    isEditMode && application ? nullStringToString(application.notes) || '' : draft?.notes || ''
-  )
   // Helper to extract contact_id from application (handles number, null, or sql.NullInt32 format)
   const getContactIdFromApplication = (app: Application | null | undefined): string => {
     if (!app || !app.contact_id) return ''
@@ -142,67 +78,65 @@ export default function ApplicationForm({
     return ''
   }
 
-  const [contactId, setContactId] = useState<string>(
-    isEditMode
-      ? getContactIdFromApplication(application)
-      : draft?.contactId || ''
-  )
-  const [error, setError] = useState<string | null>(null)
-
-  // Debounce timer ref
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Auto-save to sessionStorage on field changes (debounced)
-  useEffect(() => {
-    // Clear existing timer
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current)
-    }
-
-    // Set new timer to save after 300ms of no changes
-    saveTimerRef.current = setTimeout(() => {
-      saveDraft({
-        companyName,
-        jobTitle,
-        jobDescription,
-        jobRequirements,
-        jobLocation,
-        status,
-        appliedDate,
-        contactId,
-        notes,
-      })
-    }, 300)
-
-    // Cleanup timer on unmount
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current)
+  // Initialize default form values
+  const getInitialFormData = (): FormData => {
+    if (isEditMode) {
+      return {
+        companyName: company?.name || '',
+        jobTitle: job?.title || '',
+        jobDescription: job ? nullStringToString(job.description) || '' : '',
+        jobRequirements: job ? nullStringToString(job.requirements) || '' : '',
+        jobLocation: job ? nullStringToString(job.location) || '' : '',
+        status: application?.status || 'applied',
+        appliedDate: getDefaultDate(),
+        contactId: getContactIdFromApplication(application),
+        notes: application ? nullStringToString(application.notes) || '' : '',
       }
     }
-  }, [companyName, jobTitle, jobDescription, jobRequirements, jobLocation, status, appliedDate, contactId, notes])
+    return {
+      companyName: '',
+      jobTitle: '',
+      jobDescription: '',
+      jobRequirements: '',
+      jobLocation: '',
+      status: 'applied',
+      appliedDate: getDefaultDate(),
+      contactId: '',
+      notes: '',
+    }
+  }
+
+  // Use form draft hook for managing form state and sessionStorage
+  const { formData, updateField, clearDraft, resetForm } = useFormDraft<FormData>(
+    STORAGE_KEY,
+    getInitialFormData(),
+    isEditMode,
+    DEBOUNCE_DELAY
+  )
+
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
 
     // Validation
-    if (!companyName.trim()) {
+    if (!formData.companyName.trim()) {
       setError('Company name is required')
       return
     }
 
-    if (!jobTitle.trim()) {
+    if (!formData.jobTitle.trim()) {
       setError('Job title is required')
       return
     }
 
-    if (!status) {
+    if (!formData.status) {
       setError('Status is required')
       return
     }
 
-    if (!appliedDate) {
+    if (!formData.appliedDate) {
       setError('Applied date is required')
       return
     }
@@ -210,38 +144,27 @@ export default function ApplicationForm({
     try {
       // Convert contactId: empty string or invalid number should be null
       let contactIdValue: number | null = null
-      if (contactId && contactId.trim()) {
-        const parsed = Number(contactId.trim())
+      if (formData.contactId && formData.contactId.trim()) {
+        const parsed = Number(formData.contactId.trim())
         if (!isNaN(parsed) && parsed > 0) {
           contactIdValue = parsed
         }
       }
 
       await onSubmit({
-        companyName: companyName.trim(),
-        jobTitle: jobTitle.trim(),
-        jobDescription: jobDescription.trim() || undefined,
-        jobRequirements: jobRequirements.trim() || undefined,
-        jobLocation: jobLocation.trim() || undefined,
-        status,
-        appliedDate,
+        companyName: formData.companyName.trim(),
+        jobTitle: formData.jobTitle.trim(),
+        jobDescription: formData.jobDescription.trim() || undefined,
+        jobRequirements: formData.jobRequirements.trim() || undefined,
+        jobLocation: formData.jobLocation.trim() || undefined,
+        status: formData.status,
+        appliedDate: formData.appliedDate,
         contactId: contactIdValue,
-        notes: notes.trim() || undefined,
+        notes: formData.notes.trim() || undefined,
       })
 
-      // Clear draft after successful submission
-      clearDraft()
-
-      // Reset form fields
-      setCompanyName('')
-      setJobTitle('')
-      setJobDescription('')
-      setJobRequirements('')
-      setJobLocation('')
-      setStatus('applied')
-      setAppliedDate(getDefaultDate())
-      setContactId('')
-      setNotes('')
+      // Clear draft and reset form after successful submission
+      resetForm()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save application')
       // Don't clear draft on error - user can retry
@@ -269,8 +192,8 @@ export default function ApplicationForm({
         <input
           type="text"
           id="companyName"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
+          value={formData.companyName}
+          onChange={(e) => updateField('companyName', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter company name"
           required
@@ -286,8 +209,8 @@ export default function ApplicationForm({
         <input
           type="text"
           id="jobTitle"
-          value={jobTitle}
-          onChange={(e) => setJobTitle(e.target.value)}
+          value={formData.jobTitle}
+          onChange={(e) => updateField('jobTitle', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter job title"
           required
@@ -302,8 +225,8 @@ export default function ApplicationForm({
         </label>
         <textarea
           id="jobDescription"
-          value={jobDescription}
-          onChange={(e) => setJobDescription(e.target.value)}
+          value={formData.jobDescription}
+          onChange={(e) => updateField('jobDescription', e.target.value)}
           rows={4}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter job description"
@@ -318,8 +241,8 @@ export default function ApplicationForm({
         </label>
         <textarea
           id="jobRequirements"
-          value={jobRequirements}
-          onChange={(e) => setJobRequirements(e.target.value)}
+          value={formData.jobRequirements}
+          onChange={(e) => updateField('jobRequirements', e.target.value)}
           rows={4}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter job requirements"
@@ -335,8 +258,8 @@ export default function ApplicationForm({
         <input
           type="text"
           id="jobLocation"
-          value={jobLocation}
-          onChange={(e) => setJobLocation(e.target.value)}
+          value={formData.jobLocation}
+          onChange={(e) => updateField('jobLocation', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter job location"
           disabled={isLoading}
@@ -350,8 +273,8 @@ export default function ApplicationForm({
         </label>
         <select
           id="status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          value={formData.status}
+          onChange={(e) => updateField('status', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
           disabled={isLoading}
@@ -372,8 +295,8 @@ export default function ApplicationForm({
         <input
           type="date"
           id="appliedDate"
-          value={appliedDate}
-          onChange={(e) => setAppliedDate(e.target.value)}
+          value={formData.appliedDate}
+          onChange={(e) => updateField('appliedDate', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
           disabled={isLoading}
@@ -387,8 +310,8 @@ export default function ApplicationForm({
         </label>
         <select
           id="contactId"
-          value={contactId}
-          onChange={(e) => setContactId(e.target.value)}
+          value={formData.contactId}
+          onChange={(e) => updateField('contactId', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={isLoading}
         >
@@ -408,8 +331,8 @@ export default function ApplicationForm({
         </label>
         <textarea
           id="notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          value={formData.notes}
+          onChange={(e) => updateField('notes', e.target.value)}
           rows={3}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter any additional notes"

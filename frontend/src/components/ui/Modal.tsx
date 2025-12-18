@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react'
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 
 interface ModalProps {
   isOpen: boolean
@@ -11,6 +12,9 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
   const backdropRef = useRef<HTMLDivElement>(null)
   const mouseDownRef = useRef<HTMLElement | null>(null)
 
+  // Lock body scroll when modal is open
+  useBodyScrollLock(isOpen)
+
   // Close modal on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -21,13 +25,10 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape)
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden'
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
     }
   }, [isOpen, onClose])
 
