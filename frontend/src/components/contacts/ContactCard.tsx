@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { Contact } from '../../types'
-import { nullStringToString, nullTimeToString } from '../../utils/helpers'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { formatDateDefault } from '../../utils/date'
 
 interface ContactCardProps {
   contact: Contact
@@ -23,10 +23,10 @@ export default function ContactCard({ contact, onEdit, onDelete, isDeleting = fa
     setIsDeleteDialogOpen(false)
   }
 
-  const email = nullStringToString(contact.email)
-  const phone = nullStringToString(contact.phone)
-  const linkedin = nullStringToString(contact.linkedin)
-  const createdAt = nullTimeToString(contact.created_at)
+  const email = contact.email
+  const phone = contact.phone
+  const linkedin = contact.linkedin
+  const createdAt = contact.created_at
 
   return (
     <>
@@ -67,7 +67,7 @@ export default function ContactCard({ contact, onEdit, onDelete, isDeleting = fa
             </div>
             {createdAt && (
               <p className="text-xs text-gray-500 mt-2">
-                Created: {new Date(createdAt).toLocaleDateString()}
+                Created: {formatDateDefault(createdAt)}
               </p>
             )}
           </div>

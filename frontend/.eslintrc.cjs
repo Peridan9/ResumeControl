@@ -14,6 +14,8 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    // Enforce exhaustive dependencies in useEffect, useCallback, and useMemo
+    'react-hooks/exhaustive-deps': 'error',
   },
 }
 

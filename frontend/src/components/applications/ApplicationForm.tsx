@@ -1,10 +1,8 @@
-import { useState, FormEvent } from 'react'
 import type { Application, Job, Company, Contact } from '../../types'
-import { nullStringToString } from '../../utils/helpers'
 import Button from '../ui/Button'
+import ErrorMessage from '../ui/ErrorMessage'
 import { STATUS_OPTIONS } from '../../constants/status'
-import { DEBOUNCE_DELAY } from '../../constants/timing'
-import { useFormDraft } from '../../hooks/useFormDraft'
+import { useApplicationForm } from '../../hooks/useApplicationForm'
 
 interface ApplicationFormProps {
   application?: Application | null
@@ -26,20 +24,6 @@ interface ApplicationFormProps {
   isLoading?: boolean
 }
 
-const STORAGE_KEY = 'applicationFormDraft'
-
-interface FormData {
-  companyName: string
-  jobTitle: string
-  jobDescription: string
-  jobRequirements: string
-  jobLocation: string
-  status: string
-  appliedDate: string
-  contactId: string
-  notes: string
-}
-
 export default function ApplicationForm({
   application,
   job,
@@ -54,122 +38,13 @@ export default function ApplicationForm({
   // Ensure contacts is always an array (handle null/undefined from React Query)
   const safeContacts = contacts || []
 
-  // Helper to get default date
-  const getDefaultDate = () => {
-    if (application?.applied_date) {
-      return application.applied_date.split('T')[0]
-    }
-    const today = new Date()
-    return today.toISOString().split('T')[0]
-  }
-
-  // Helper to extract contact_id from application (handles number, null, or sql.NullInt32 format)
-  const getContactIdFromApplication = (app: Application | null | undefined): string => {
-    if (!app || !app.contact_id) return ''
-    const contactId = app.contact_id
-    // Handle sql.NullInt32 format: { Int32: number, Valid: boolean }
-    if (typeof contactId === 'object' && 'Int32' in contactId && 'Valid' in contactId) {
-      return contactId.Valid && contactId.Int32 > 0 ? String(contactId.Int32) : ''
-    }
-    // Handle number format
-    if (typeof contactId === 'number' && contactId > 0) {
-      return String(contactId)
-    }
-    return ''
-  }
-
-  // Initialize default form values
-  const getInitialFormData = (): FormData => {
-    if (isEditMode) {
-      return {
-        companyName: company?.name || '',
-        jobTitle: job?.title || '',
-        jobDescription: job ? nullStringToString(job.description) || '' : '',
-        jobRequirements: job ? nullStringToString(job.requirements) || '' : '',
-        jobLocation: job ? nullStringToString(job.location) || '' : '',
-        status: application?.status || 'applied',
-        appliedDate: getDefaultDate(),
-        contactId: getContactIdFromApplication(application),
-        notes: application ? nullStringToString(application.notes) || '' : '',
-      }
-    }
-    return {
-      companyName: '',
-      jobTitle: '',
-      jobDescription: '',
-      jobRequirements: '',
-      jobLocation: '',
-      status: 'applied',
-      appliedDate: getDefaultDate(),
-      contactId: '',
-      notes: '',
-    }
-  }
-
-  // Use form draft hook for managing form state and sessionStorage
-  const { formData, updateField, clearDraft, resetForm } = useFormDraft<FormData>(
-    STORAGE_KEY,
-    getInitialFormData(),
-    isEditMode,
-    DEBOUNCE_DELAY
-  )
-
-  const [error, setError] = useState<string | null>(null)
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError(null)
-
-    // Validation
-    if (!formData.companyName.trim()) {
-      setError('Company name is required')
-      return
-    }
-
-    if (!formData.jobTitle.trim()) {
-      setError('Job title is required')
-      return
-    }
-
-    if (!formData.status) {
-      setError('Status is required')
-      return
-    }
-
-    if (!formData.appliedDate) {
-      setError('Applied date is required')
-      return
-    }
-
-    try {
-      // Convert contactId: empty string or invalid number should be null
-      let contactIdValue: number | null = null
-      if (formData.contactId && formData.contactId.trim()) {
-        const parsed = Number(formData.contactId.trim())
-        if (!isNaN(parsed) && parsed > 0) {
-          contactIdValue = parsed
-        }
-      }
-
-      await onSubmit({
-        companyName: formData.companyName.trim(),
-        jobTitle: formData.jobTitle.trim(),
-        jobDescription: formData.jobDescription.trim() || undefined,
-        jobRequirements: formData.jobRequirements.trim() || undefined,
-        jobLocation: formData.jobLocation.trim() || undefined,
-        status: formData.status,
-        appliedDate: formData.appliedDate,
-        contactId: contactIdValue,
-        notes: formData.notes.trim() || undefined,
-      })
-
-      // Clear draft and reset form after successful submission
-      resetForm()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save application')
-      // Don't clear draft on error - user can retry
-    }
-  }
+  // Use custom hook for form logic
+  const { formData, error, updateField, handleSubmit } = useApplicationForm({
+    application,
+    job,
+    company,
+    onSubmit,
+  })
 
   const handleCancel = () => {
     // Keep draft in sessionStorage when canceling (user might reopen)
@@ -177,107 +52,120 @@ export default function ApplicationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div role="alert" aria-live="polite">
+          <ErrorMessage message={error} variant="compact" />
         </div>
       )}
 
       {/* Company Name */}
       <div>
-        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
-          Company Name <span className="text-red-500">*</span>
+        <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Company Name <span className="text-red-500" aria-label="required">*</span>
         </label>
         <input
           type="text"
           id="companyName"
+          name="companyName"
           value={formData.companyName}
           onChange={(e) => updateField('companyName', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter company name"
           required
           disabled={isLoading}
+          aria-required="true"
+          aria-invalid={error ? 'true' : 'false'}
         />
       </div>
 
       {/* Job Title */}
       <div>
-        <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700 mb-1">
-          Job Title <span className="text-red-500">*</span>
+        <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Job Title <span className="text-red-500" aria-label="required">*</span>
         </label>
         <input
           type="text"
           id="jobTitle"
+          name="jobTitle"
           value={formData.jobTitle}
           onChange={(e) => updateField('jobTitle', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter job title"
           required
           disabled={isLoading}
+          aria-required="true"
         />
       </div>
 
       {/* Job Description */}
       <div>
-        <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700 mb-1">
-          Job Description (optional)
+        <label htmlFor="jobDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Job Description <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <textarea
           id="jobDescription"
+          name="jobDescription"
           value={formData.jobDescription}
           onChange={(e) => updateField('jobDescription', e.target.value)}
           rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter job description"
           disabled={isLoading}
+          aria-label="Job description (optional)"
         />
       </div>
 
       {/* Job Requirements */}
       <div>
-        <label htmlFor="jobRequirements" className="block text-sm font-medium text-gray-700 mb-1">
-          Job Requirements (optional)
+        <label htmlFor="jobRequirements" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Job Requirements <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <textarea
           id="jobRequirements"
+          name="jobRequirements"
           value={formData.jobRequirements}
           onChange={(e) => updateField('jobRequirements', e.target.value)}
           rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter job requirements"
           disabled={isLoading}
+          aria-label="Job requirements (optional)"
         />
       </div>
 
       {/* Job Location */}
       <div>
-        <label htmlFor="jobLocation" className="block text-sm font-medium text-gray-700 mb-1">
-          Job Location (optional)
+        <label htmlFor="jobLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Job Location <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <input
           type="text"
           id="jobLocation"
+          name="jobLocation"
           value={formData.jobLocation}
           onChange={(e) => updateField('jobLocation', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter job location"
           disabled={isLoading}
+          aria-label="Job location (optional)"
         />
       </div>
 
       {/* Status */}
       <div>
-        <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-          Status <span className="text-red-500">*</span>
+        <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Status <span className="text-red-500" aria-label="required">*</span>
         </label>
         <select
           id="status"
+          name="status"
           value={formData.status}
           onChange={(e) => updateField('status', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           required
           disabled={isLoading}
+          aria-required="true"
         >
           {STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -289,31 +177,35 @@ export default function ApplicationForm({
 
       {/* Applied Date */}
       <div>
-        <label htmlFor="appliedDate" className="block text-sm font-medium text-gray-700 mb-1">
-          Applied Date <span className="text-red-500">*</span>
+        <label htmlFor="appliedDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Applied Date <span className="text-red-500" aria-label="required">*</span>
         </label>
         <input
           type="date"
           id="appliedDate"
+          name="appliedDate"
           value={formData.appliedDate}
           onChange={(e) => updateField('appliedDate', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           required
           disabled={isLoading}
+          aria-required="true"
         />
       </div>
 
       {/* Contact */}
       <div>
-        <label htmlFor="contactId" className="block text-sm font-medium text-gray-700 mb-1">
-          Contact (optional)
+        <label htmlFor="contactId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Contact <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <select
           id="contactId"
+          name="contactId"
           value={formData.contactId}
           onChange={(e) => updateField('contactId', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           disabled={isLoading}
+          aria-label="Contact (optional)"
         >
           <option value="">No contact</option>
           {safeContacts.map((contact) => (
@@ -326,17 +218,19 @@ export default function ApplicationForm({
 
       {/* Notes */}
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
-          Notes (optional)
+        <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Notes <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <textarea
           id="notes"
+          name="notes"
           value={formData.notes}
           onChange={(e) => updateField('notes', e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter any additional notes"
           disabled={isLoading}
+          aria-label="Notes (optional)"
         />
       </div>
 

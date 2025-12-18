@@ -10,9 +10,9 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import type { Contact } from '../../types'
-import { nullStringToString, nullTimeToString } from '../../utils/helpers'
 import DataTable, { Column } from '../ui/DataTable'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { formatDate } from '../../utils/date'
 
 interface ContactTableProps {
   contacts: Contact[]
@@ -52,20 +52,6 @@ export default function ContactTable({
     navigate(`/contacts/${contact.id}`)
   }
 
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    } catch {
-      return 'Invalid date'
-    }
-  }
-
   const columns: Column<Contact>[] = [
     {
       key: 'name',
@@ -88,7 +74,7 @@ export default function ContactTable({
         </div>
       ),
       render: (contact) => {
-        const email = nullStringToString(contact.email)
+        const email = contact.email
         return email ? (
           <a
             href={`mailto:${email}`}
@@ -111,7 +97,7 @@ export default function ContactTable({
         </div>
       ),
       render: (contact) => {
-        const phone = nullStringToString(contact.phone)
+        const phone = contact.phone
         return phone ? (
           <a
             href={`tel:${phone}`}
@@ -134,7 +120,7 @@ export default function ContactTable({
         </div>
       ),
       render: (contact) => {
-        const linkedin = nullStringToString(contact.linkedin)
+        const linkedin = contact.linkedin
         return linkedin ? (
           <a
             href={linkedin}
@@ -159,7 +145,7 @@ export default function ContactTable({
         </div>
       ),
       render: (contact) => {
-        const createdAt = nullTimeToString(contact.created_at)
+        const createdAt = contact.created_at
         return <span className="text-gray-600">{formatDate(createdAt)}</span>
       },
     },

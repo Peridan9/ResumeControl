@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { companiesAPI } from '../services/api'
 import type { Company, UpdateCompanyRequest } from '../types'
-import { nullStringToString, nullTimeToString } from '../utils/helpers'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import CompanyForm from '../components/companies/CompanyForm'
+import LoadingState from '../components/ui/LoadingState'
+import ErrorMessage from '../components/ui/ErrorMessage'
+import { formatDateTime } from '../utils/date'
 
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -40,36 +42,6 @@ export default function CompanyDetail() {
     : !companyId
     ? 'Invalid company ID'
     : null
-
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    } catch {
-      return 'Invalid date'
-    }
-  }
-
-  const formatDateTime = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } catch {
-      return 'Invalid date'
-    }
-  }
 
   const handleEdit = () => {
     setIsEditModalOpen(true)
@@ -140,12 +112,7 @@ export default function CompanyDetail() {
   }
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow p-12 text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Loading company details...</p>
-      </div>
-    )
+    return <LoadingState message="Loading company details..." />
   }
 
   if (error || !company) {
@@ -154,16 +121,14 @@ export default function CompanyDetail() {
         <Button variant="secondary" onClick={() => navigate('/companies')} className="mb-4">
           ← Back to Companies
         </Button>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || 'Company not found'}
-        </div>
+        <ErrorMessage message={error || 'Company not found'} />
       </div>
     )
   }
 
-  const companyWebsite = nullStringToString(company.website)
-  const createdAt = nullTimeToString(company.created_at)
-  const updatedAt = nullTimeToString(company.updated_at)
+  const companyWebsite = company.website
+  const createdAt = company.created_at
+  const updatedAt = company.updated_at
 
   return (
     <div>
@@ -194,8 +159,8 @@ export default function CompanyDetail() {
 
       {/* Error Message */}
       {(error || mutationError) && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || mutationError}
+        <div className="mb-4">
+          <ErrorMessage message={error || mutationError || ''} />
         </div>
       )}
 

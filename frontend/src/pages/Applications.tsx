@@ -1,17 +1,18 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApplications } from '../hooks/useApplications'
+import { useToast } from '../hooks/useToast'
 import ApplicationTable, { STATUS_OPTIONS } from '../components/applications/ApplicationTable'
 import ApplicationForm from '../components/applications/ApplicationForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
+import ErrorMessage from '../components/ui/ErrorMessage'
 
 export default function Applications() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [mutationError, setMutationError] = useState<string | null>(null)
 
   // Clear draft on page load/refresh (sessionStorage persists across refreshes)
   // This ensures a fresh start on page refresh, but keeps draft if form is closed/reopened without refresh
@@ -45,7 +46,6 @@ export default function Applications() {
 
   const handleCreate = () => {
     setIsModalOpen(true)
-    setMutationError(null)
   }
 
   const handleCloseModal = () => {
@@ -65,17 +65,14 @@ export default function Applications() {
   }) => {
     createApplication(formData, {
       onSuccess: () => {
-        setSuccessMessage('Application created successfully!')
-        setMutationError(null)
-        
+        toast.showSuccess('Application created successfully!')
         // Close modal after a short delay to show success message
         setTimeout(() => {
           handleCloseModal()
-          setSuccessMessage(null)
         }, 500)
       },
       onError: (err) => {
-        setMutationError(err instanceof Error ? err.message : 'Failed to create application')
+        toast.showError(err instanceof Error ? err.message : 'Failed to create application')
       },
     })
   }
@@ -88,19 +85,10 @@ export default function Applications() {
   const handleDelete = async (id: number) => {
     deleteApplication(id, {
       onSuccess: () => {
-        setSuccessMessage('Application deleted successfully!')
-        setMutationError(null)
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccessMessage(null)
-        }, 3000)
+        toast.showSuccess('Application deleted successfully!')
       },
       onError: (err) => {
-        setMutationError(err instanceof Error ? err.message : 'Failed to delete application')
-        setTimeout(() => {
-          setMutationError(null)
-        }, 5000)
+        toast.showError(err instanceof Error ? err.message : 'Failed to delete application')
       },
     })
   }
@@ -114,17 +102,10 @@ export default function Applications() {
         </Button>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {(error || mutationError) && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || mutationError}
+      {/* Error Message - only for query errors, not mutations */}
+      {error && (
+        <div className="mb-4">
+          <ErrorMessage message={error} />
         </div>
       )}
 

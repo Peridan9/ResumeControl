@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Button from '../components/ui/Button'
 import Navbar from '../components/layout/Navbar'
+import LoadingState from '../components/ui/LoadingState'
 
 export default function Landing() {
   const { isAuthenticated, loading } = useAuth()
@@ -47,14 +48,7 @@ export default function Landing() {
 
   // Show loading state while checking auth
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingState fullScreen message="Loading..." />
   }
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

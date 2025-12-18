@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contactsAPI } from '../services/api'
+import { useToast } from '../hooks/useToast'
 import type { Contact, CreateContactRequest, UpdateContactRequest } from '../types'
 import ContactTable from '../components/contacts/ContactTable'
 import ContactForm from '../components/contacts/ContactForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
+import ErrorMessage from '../components/ui/ErrorMessage'
 
 export default function Contacts() {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [mutationError, setMutationError] = useState<string | null>(null)
 
   // Fetch contacts using React Query
   const {
@@ -52,21 +53,60 @@ export default function Contacts() {
         return await contactsAPI.create(data.formData as CreateContactRequest)
       }
     },
-    onSuccess: (_, variables) => {
-      // Invalidate and refetch contacts
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['contacts'] })
+
+      // Snapshot the previous value
+      const previousContacts = queryClient.getQueryData<Contact[]>(['contacts'])
+
+      // Optimistically update to the new value
+      if (data.contact) {
+        // Update existing contact
+        queryClient.setQueryData<Contact[]>(['contacts'], (old = []) =>
+          old.map((contact) =>
+            contact.id === data.contact!.id
+              ? { ...contact, ...data.formData, updated_at: new Date().toISOString() }
+              : contact
+          )
+        )
+        return { previousContacts }
+      } else {
+        // Create new contact - add temporary ID (will be replaced by server response)
+        const tempId = Date.now()
+        const optimisticContact: Contact = {
+          id: tempId, // Temporary ID
+          name: data.formData.name,
+          email: data.formData.email ?? null,
+          phone: data.formData.phone ?? null,
+          linkedin: data.formData.linkedin ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        queryClient.setQueryData<Contact[]>(['contacts'], (old = []) => [...old, optimisticContact])
+        // Store tempId in context for later replacement
+        return { previousContacts, tempId }
+      }
+    },
+    onError: (err, data, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousContacts) {
+        queryClient.setQueryData(['contacts'], context.previousContacts)
+      }
+      toast.showError(err instanceof Error ? err.message : 'Failed to save contact')
+    },
+    onSuccess: (newContact, variables, context) => {
+      // If creating, replace the optimistic contact (with temp ID) with the real one from server
+      if (!variables.contact && context && 'tempId' in context) {
+        queryClient.setQueryData<Contact[]>(['contacts'], (old = []) =>
+          old.map((contact) => (contact.id === (context as { tempId: number }).tempId ? newContact : contact))
+        )
+      }
+      // Invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
       
-      setSuccessMessage(variables.contact ? 'Contact updated successfully!' : 'Contact created successfully!')
-      setMutationError(null)
+      toast.showSuccess(variables.contact ? 'Contact updated successfully!' : 'Contact created successfully!')
       handleCloseModal()
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null)
-      }, 3000)
-    },
-    onError: (err) => {
-      setMutationError(err instanceof Error ? err.message : 'Failed to save contact')
     },
   })
 
@@ -75,23 +115,33 @@ export default function Contacts() {
     mutationFn: async (id: number) => {
       return await contactsAPI.delete(id)
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['contacts'] })
+
+      // Snapshot the previous value
+      const previousContacts = queryClient.getQueryData<Contact[]>(['contacts'])
+
+      // Optimistically remove the contact
+      queryClient.setQueryData<Contact[]>(['contacts'], (old = []) =>
+        old.filter((contact) => contact.id !== id)
+      )
+
+      // Return a context object with the snapshotted value
+      return { previousContacts }
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousContacts) {
+        queryClient.setQueryData(['contacts'], context.previousContacts)
+      }
+      toast.showError(err instanceof Error ? err.message : 'Failed to delete contact')
+    },
     onSuccess: () => {
-      // Invalidate and refetch contacts
+      // Invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
       
-      setSuccessMessage('Contact deleted successfully!')
-      setMutationError(null)
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null)
-      }, 3000)
-    },
-    onError: (err) => {
-      setMutationError(err instanceof Error ? err.message : 'Failed to delete contact')
-      setTimeout(() => {
-        setMutationError(null)
-      }, 5000)
+      toast.showSuccess('Contact deleted successfully!')
     },
   })
 
@@ -112,17 +162,10 @@ export default function Contacts() {
         </Button>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {(error || mutationError) && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || mutationError}
+      {/* Error Message - only for query errors, not mutations */}
+      {error && (
+        <div className="mb-4">
+          <ErrorMessage message={error} />
         </div>
       )}
 

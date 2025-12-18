@@ -50,15 +50,20 @@ export default function Tooltip({
       className="relative inline-block"
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
+      onFocus={() => setIsVisible(true)}
+      onBlur={() => setIsVisible(false)}
     >
       {children}
       {isVisible && (
         <div
+          role="tooltip"
           className={`absolute z-50 ${positionClasses[position]} px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg whitespace-normal ${maxWidthClasses[maxWidth]} pointer-events-none`}
+          aria-live="polite"
         >
           {content}
           <div
             className={`absolute w-0 h-0 border-4 ${arrowClasses[position]}`}
+            aria-hidden="true"
           />
         </div>
       )}

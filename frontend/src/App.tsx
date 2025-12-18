@@ -1,20 +1,27 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
-import Dashboard from './pages/Dashboard'
-import Companies from './pages/Companies'
-import Contacts from './pages/Contacts'
-import Applications from './pages/Applications'
-import ApplicationDetail from './pages/ApplicationDetail'
-import CompanyDetail from './pages/CompanyDetail'
-import ContactDetail from './pages/ContactDetail'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Landing from './pages/Landing'
+import LoadingState from './components/ui/LoadingState'
+import ToastContainer from './components/ui/ToastContainer'
+
+// Lazy load all page components for code splitting
+const Landing = lazy(() => import('./pages/Landing'))
+const Login = lazy(() => import('./pages/Login'))
+const Register = lazy(() => import('./pages/Register'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Companies = lazy(() => import('./pages/Companies'))
+const Contacts = lazy(() => import('./pages/Contacts'))
+const Applications = lazy(() => import('./pages/Applications'))
+const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail'))
+const CompanyDetail = lazy(() => import('./pages/CompanyDetail'))
+const ContactDetail = lazy(() => import('./pages/ContactDetail'))
 
 // Create a QueryClient instance with default options
 const queryClient = new QueryClient({
@@ -28,19 +35,21 @@ const queryClient = new QueryClient({
   },
 })
 
+// Suspense wrapper component for lazy-loaded routes
+function SuspenseWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<LoadingState fullScreen message="Loading..." />}>
+      {children}
+    </Suspense>
+  )
+}
+
 // Component to handle public routes (login/register) with redirect if authenticated
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingState fullScreen message="Loading..." />
   }
 
   if (isAuthenticated) {
@@ -55,21 +64,32 @@ function AppRoutes() {
     <Router>
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<Landing />} />
+        <Route
+          path="/"
+          element={
+            <SuspenseWrapper>
+              <Landing />
+            </SuspenseWrapper>
+          }
+        />
         <Route
           path="/login"
           element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
+            <SuspenseWrapper>
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/register"
           element={
-            <PublicRoute>
-              <Register />
-            </PublicRoute>
+            <SuspenseWrapper>
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            </SuspenseWrapper>
           }
         />
 
@@ -77,71 +97,85 @@ function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/companies"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Companies />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <Companies />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/contacts"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Contacts />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <Contacts />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/applications"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <Applications />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <Applications />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/applications/:id"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <ApplicationDetail />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <ApplicationDetail />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/companies/:id"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <CompanyDetail />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <CompanyDetail />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
         <Route
           path="/contacts/:id"
           element={
-            <ProtectedRoute>
-              <Layout>
-                <ContactDetail />
-              </Layout>
-            </ProtectedRoute>
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <ContactDetail />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
           }
         />
 
@@ -157,10 +191,15 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <AppRoutes />
+              <ToastContainer />
+            </AuthProvider>
+          </ToastProvider>
         </ThemeProvider>
+        {/* React Query DevTools - only visible in development */}
+        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>
     </ErrorBoundary>
   )

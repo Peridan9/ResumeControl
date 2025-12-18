@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { useCompanies } from '../hooks/useCompanies'
+import { useToast } from '../hooks/useToast'
 import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from '../types'
 import CompanyTable from '../components/companies/CompanyTable'
 import CompanyForm from '../components/companies/CompanyForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
+import ErrorMessage from '../components/ui/ErrorMessage'
 
 export default function Companies() {
+  const toast = useToast()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [mutationError, setMutationError] = useState<string | null>(null)
 
   // Use companies hook for data fetching
   const {
@@ -43,17 +44,14 @@ export default function Companies() {
       { company: editingCompany, formData: data },
       {
         onSuccess: () => {
-          setSuccessMessage(editingCompany ? 'Company updated successfully!' : 'Company created successfully!')
-          setMutationError(null)
-          
+          toast.showSuccess(editingCompany ? 'Company updated successfully!' : 'Company created successfully!')
           // Close modal after a short delay to show success message
           setTimeout(() => {
             handleCloseModal()
-            setSuccessMessage(null)
           }, 500)
         },
         onError: (err) => {
-          setMutationError(err instanceof Error ? err.message : 'Failed to save company')
+          toast.showError(err instanceof Error ? err.message : 'Failed to save company')
         },
       }
     )
@@ -62,19 +60,10 @@ export default function Companies() {
   const handleDelete = async (id: number) => {
     deleteCompany(id, {
       onSuccess: () => {
-        setSuccessMessage('Company deleted successfully!')
-        setMutationError(null)
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccessMessage(null)
-        }, 3000)
+        toast.showSuccess('Company deleted successfully!')
       },
       onError: (err) => {
-        setMutationError(err instanceof Error ? err.message : 'Failed to delete company')
-        setTimeout(() => {
-          setMutationError(null)
-        }, 5000)
+        toast.showError(err instanceof Error ? err.message : 'Failed to delete company')
       },
     })
   }
@@ -88,17 +77,10 @@ export default function Companies() {
         </Button>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {(error || mutationError) && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || mutationError}
+      {/* Error Message - only for query errors, not mutations */}
+      {error && (
+        <div className="mb-4">
+          <ErrorMessage message={error} />
         </div>
       )}
 

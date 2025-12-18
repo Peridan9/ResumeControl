@@ -31,12 +31,24 @@ export default function ConfirmDialog({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-4">
-        <p className="text-gray-700">{message}</p>
+        <p className="text-gray-700 dark:text-gray-300" role="alert" aria-live="polite">
+          {message}
+        </p>
         <div className="flex justify-end space-x-3 pt-4">
-          <Button variant="secondary" onClick={onClose} disabled={isLoading}>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            disabled={isLoading}
+            aria-label={cancelText}
+          >
             {cancelText}
           </Button>
-          <Button variant={variant} onClick={handleConfirm} disabled={isLoading}>
+          <Button
+            variant={variant}
+            onClick={handleConfirm}
+            disabled={isLoading}
+            aria-label={isLoading ? 'Processing...' : confirmText}
+          >
             {isLoading ? 'Deleting...' : confirmText}
           </Button>
         </div>

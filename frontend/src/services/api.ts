@@ -1,4 +1,5 @@
 // API client for backend communication
+// All responses are normalized at the API boundary
 
 import type {
   Company,
@@ -15,43 +16,75 @@ import type {
   UpdateContactRequest,
 } from '../types'
 import { fetchAPI } from './fetch'
+import {
+  transformCompany,
+  transformCompanies,
+  transformJob,
+  transformJobs,
+  transformApplication,
+  transformApplications,
+  transformContact,
+  transformContacts,
+} from './transformers'
 
 // Companies API
 export const companiesAPI = {
-  getAll: () => fetchAPI<Company[]>('/companies'),
-  getById: (id: number) => fetchAPI<Company>(`/companies/${id}`),
-  create: (data: CreateCompanyRequest) =>
-    fetchAPI<Company>('/companies', {
+  getAll: async (): Promise<Company[]> => {
+    const companies = await fetchAPI<any[]>('/companies')
+    return transformCompanies(companies)
+  },
+  getById: async (id: number): Promise<Company> => {
+    const company = await fetchAPI<any>(`/companies/${id}`)
+    return transformCompany(company)
+  },
+  create: async (data: CreateCompanyRequest): Promise<Company> => {
+    const company = await fetchAPI<any>('/companies', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
-  update: (id: number, data: UpdateCompanyRequest) =>
-    fetchAPI<Company>(`/companies/${id}`, {
+    })
+    return transformCompany(company)
+  },
+  update: async (id: number, data: UpdateCompanyRequest): Promise<Company> => {
+    const company = await fetchAPI<any>(`/companies/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
-    }),
+    })
+    return transformCompany(company)
+  },
   delete: (id: number) =>
     fetchAPI<void>(`/companies/${id}`, {
       method: 'DELETE',
     }),
-  getJobs: (companyId: number) =>
-    fetchAPI<Job[]>(`/companies/${companyId}/jobs`),
+  getJobs: async (companyId: number): Promise<Job[]> => {
+    const jobs = await fetchAPI<any[]>(`/companies/${companyId}/jobs`)
+    return transformJobs(jobs)
+  },
 }
 
 // Jobs API
 export const jobsAPI = {
-  getAll: () => fetchAPI<Job[]>('/jobs'),
-  getById: (id: number) => fetchAPI<Job>(`/jobs/${id}`),
-  create: (data: CreateJobRequest) =>
-    fetchAPI<Job>('/jobs', {
+  getAll: async (): Promise<Job[]> => {
+    const jobs = await fetchAPI<any[]>('/jobs')
+    return transformJobs(jobs)
+  },
+  getById: async (id: number): Promise<Job> => {
+    const job = await fetchAPI<any>(`/jobs/${id}`)
+    return transformJob(job)
+  },
+  create: async (data: CreateJobRequest): Promise<Job> => {
+    const job = await fetchAPI<any>('/jobs', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
-  update: (id: number, data: UpdateJobRequest) =>
-    fetchAPI<Job>(`/jobs/${id}`, {
+    })
+    return transformJob(job)
+  },
+  update: async (id: number, data: UpdateJobRequest): Promise<Job> => {
+    const job = await fetchAPI<any>(`/jobs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
-    }),
+    })
+    return transformJob(job)
+  },
   delete: (id: number) =>
     fetchAPI<void>(`/jobs/${id}`, {
       method: 'DELETE',
@@ -60,43 +93,63 @@ export const jobsAPI = {
 
 // Applications API
 export const applicationsAPI = {
-  getAll: (status?: string) => {
+  getAll: async (status?: string): Promise<Application[]> => {
     const url = status ? `/applications?status=${status}` : '/applications'
-    return fetchAPI<Application[]>(url)
+    const applications = await fetchAPI<any[]>(url)
+    return transformApplications(applications)
   },
-  getById: (id: number) => fetchAPI<Application>(`/applications/${id}`),
-  create: (data: CreateApplicationRequest) =>
-    fetchAPI<Application>('/applications', {
+  getById: async (id: number): Promise<Application> => {
+    const application = await fetchAPI<any>(`/applications/${id}`)
+    return transformApplication(application)
+  },
+  create: async (data: CreateApplicationRequest): Promise<Application> => {
+    const application = await fetchAPI<any>('/applications', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
-  update: (id: number, data: UpdateApplicationRequest) =>
-    fetchAPI<Application>(`/applications/${id}`, {
+    })
+    return transformApplication(application)
+  },
+  update: async (id: number, data: UpdateApplicationRequest): Promise<Application> => {
+    const application = await fetchAPI<any>(`/applications/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
-    }),
+    })
+    return transformApplication(application)
+  },
   delete: (id: number) =>
     fetchAPI<void>(`/applications/${id}`, {
       method: 'DELETE',
     }),
-  getJobByApplicationId: (applicationId: number) =>
-    fetchAPI<Job>(`/applications/${applicationId}/job`),
+  getJobByApplicationId: async (applicationId: number): Promise<Job> => {
+    const job = await fetchAPI<any>(`/applications/${applicationId}/job`)
+    return transformJob(job)
+  },
 }
 
 // Contacts API
 export const contactsAPI = {
-  getAll: () => fetchAPI<Contact[]>('/contacts'),
-  getById: (id: number) => fetchAPI<Contact>(`/contacts/${id}`),
-  create: (data: CreateContactRequest) =>
-    fetchAPI<Contact>('/contacts', {
+  getAll: async (): Promise<Contact[]> => {
+    const contacts = await fetchAPI<any[]>('/contacts')
+    return transformContacts(contacts)
+  },
+  getById: async (id: number): Promise<Contact> => {
+    const contact = await fetchAPI<any>(`/contacts/${id}`)
+    return transformContact(contact)
+  },
+  create: async (data: CreateContactRequest): Promise<Contact> => {
+    const contact = await fetchAPI<any>('/contacts', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
-  update: (id: number, data: UpdateContactRequest) =>
-    fetchAPI<Contact>(`/contacts/${id}`, {
+    })
+    return transformContact(contact)
+  },
+  update: async (id: number, data: UpdateContactRequest): Promise<Contact> => {
+    const contact = await fetchAPI<any>(`/contacts/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
-    }),
+    })
+    return transformContact(contact)
+  },
   delete: (id: number) =>
     fetchAPI<void>(`/contacts/${id}`, {
       method: 'DELETE',

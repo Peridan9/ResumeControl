@@ -50,14 +50,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleTheme = () => {
     setIsDark((prev) => {
       const newValue = !prev
-      // Apply theme immediately, synchronously
+      // Apply theme immediately for responsive UI
       if (newValue) {
         document.documentElement.classList.add('dark')
-        localStorage.setItem('theme', 'dark')
       } else {
         document.documentElement.classList.remove('dark')
-        localStorage.setItem('theme', 'light')
       }
+      // localStorage will be updated by useEffect when isDark changes
       return newValue
     })
   }

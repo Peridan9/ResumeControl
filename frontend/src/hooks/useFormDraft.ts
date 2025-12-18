@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 /**
  * Custom hook for managing form drafts in sessionStorage
@@ -30,23 +30,24 @@ export function useFormDraft<T extends Record<string, any>>(
   }
 
   // Save draft to sessionStorage (only for create mode)
-  const saveDraft = (data: T) => {
+  // Wrapped in useCallback to ensure stable reference for useEffect dependency
+  const saveDraft = useCallback((data: T) => {
     if (isEditMode) return // Don't save draft in edit mode
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(data))
     } catch (error) {
       console.error(`Failed to save draft to sessionStorage:`, error)
     }
-  }
+  }, [storageKey, isEditMode])
 
   // Clear draft from sessionStorage
-  const clearDraft = () => {
+  const clearDraft = useCallback(() => {
     try {
       sessionStorage.removeItem(storageKey)
     } catch (error) {
       console.error(`Failed to clear draft from sessionStorage:`, error)
     }
-  }
+  }, [storageKey])
 
   // Initialize form values: use draft if available, otherwise use initial value
   const draft = loadDraft()
@@ -56,6 +57,12 @@ export function useFormDraft<T extends Record<string, any>>(
     }
     return initialValue
   })
+
+  // Store initialValue in a ref to ensure resetForm always uses the latest value
+  const initialValueRef = useRef(initialValue)
+  useEffect(() => {
+    initialValueRef.current = initialValue
+  }, [initialValue])
 
   // Debounce timer ref
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -78,7 +85,7 @@ export function useFormDraft<T extends Record<string, any>>(
         clearTimeout(saveTimerRef.current)
       }
     }
-  }, [formData, storageKey, isEditMode, debounceDelay])
+  }, [formData, saveDraft, debounceDelay])
 
   // Update a specific field in the form data
   const updateField = <K extends keyof T>(field: K, value: T[K]) => {
@@ -86,10 +93,11 @@ export function useFormDraft<T extends Record<string, any>>(
   }
 
   // Reset form to initial value and clear draft
-  const resetForm = () => {
-    setFormData(initialValue)
+  // Uses ref to ensure it always uses the latest initialValue
+  const resetForm = useCallback(() => {
+    setFormData(initialValueRef.current)
     clearDraft()
-  }
+  }, [clearDraft])
 
   return {
     formData,

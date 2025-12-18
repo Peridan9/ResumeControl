@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { FunnelIcon } from '@heroicons/react/24/outline'
+import LoadingState from './LoadingState'
 
 export interface Column<T> {
   key: string
@@ -33,9 +34,8 @@ export default function DataTable<T>({
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <LoadingState />
       </div>
     )
   }
@@ -55,9 +55,10 @@ export default function DataTable<T>({
         <div className="border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-expanded={isFilterOpen}
             aria-label={filterLabel}
+            aria-controls="filter-content"
           >
             <div className="flex items-center space-x-2">
               <FunnelIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
@@ -82,9 +83,11 @@ export default function DataTable<T>({
 
           {/* Collapsible Filter Content */}
           <div
+            id="filter-content"
             className={`overflow-hidden transition-all duration-300 ease-in-out ${
               isFilterOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
             }`}
+            aria-hidden={!isFilterOpen}
           >
             <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
               {filter}
@@ -95,12 +98,17 @@ export default function DataTable<T>({
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <table
+          className="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+          role="table"
+          aria-label={filterLabel || 'Data table'}
+        >
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
+                  scope="col"
                   className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${
                     column.className || ''
                   }`}
@@ -115,9 +123,18 @@ export default function DataTable<T>({
               <tr
                 key={rowKey(item)}
                 className={`transition-colors ${
-                  onRowClick ? 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer' : ''
+                  onRowClick ? 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer focus-within:bg-gray-50 dark:focus-within:bg-gray-700' : ''
                 }`}
                 onClick={() => onRowClick?.(item)}
+                onKeyDown={(e) => {
+                  if (onRowClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault()
+                    onRowClick(item)
+                  }
+                }}
+                tabIndex={onRowClick ? 0 : undefined}
+                role={onRowClick ? 'button' : undefined}
+                aria-label={onRowClick ? `Row ${rowKey(item)}` : undefined}
               >
                 {columns.map((column) => (
                   <td

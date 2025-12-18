@@ -16,30 +16,33 @@ export default function Navbar() {
   // Landing page variant
   if (isLandingPage) {
     return (
-      <nav className="bg-white dark:bg-gray-800 shadow-sm relative z-10">
+      <nav className="bg-white dark:bg-gray-800 shadow-sm relative z-10" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ResumeControl</h1>
+            <Link to="/" className="text-2xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
+              ResumeControl
+            </Link>
             <div className="flex items-center gap-4">
-              <Link to="/login">
+              <Link to="/login" aria-label="Sign in to your account">
                 <Button variant="secondary" className="px-6 py-2 text-sm">
                   Sign In
                 </Button>
               </Link>
-              <Link to="/register">
+              <Link to="/register" aria-label="Create a new account">
                 <Button className="px-6 py-2 text-sm">Get Started</Button>
               </Link>
               
               {/* Dark Mode Toggle Button - moved to the right */}
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                 aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-pressed={isDark}
               >
                 {isDark ? (
-                  <SunIcon className="w-5 h-5" />
+                  <SunIcon className="w-5 h-5" aria-hidden="true" />
                 ) : (
-                  <MoonIcon className="w-5 h-5" />
+                  <MoonIcon className="w-5 h-5" aria-hidden="true" />
                 )}
               </button>
             </div>
@@ -51,11 +54,15 @@ export default function Navbar() {
 
   // Protected routes variant
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700" aria-label="Main navigation">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/dashboard" className="text-xl font-bold text-gray-900 dark:text-white">
+            <Link
+              to="/dashboard"
+              className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              aria-label="ResumeControl home"
+            >
               ResumeControl
             </Link>
           </div>
@@ -69,13 +76,14 @@ export default function Navbar() {
             {/* Dark Mode Toggle Button - moved to the right */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-pressed={isDark}
             >
               {isDark ? (
-                <SunIcon className="w-5 h-5" />
+                <SunIcon className="w-5 h-5" aria-hidden="true" />
               ) : (
-                <MoonIcon className="w-5 h-5" />
+                <MoonIcon className="w-5 h-5" aria-hidden="true" />
               )}
             </button>
           </div>

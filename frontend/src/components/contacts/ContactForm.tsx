@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react'
 import type { Contact, CreateContactRequest, UpdateContactRequest } from '../../types'
-import { nullStringToString } from '../../utils/helpers'
 import Button from '../ui/Button'
+import ErrorMessage from '../ui/ErrorMessage'
 
 interface ContactFormProps {
   contact?: Contact | null
@@ -17,15 +17,9 @@ export default function ContactForm({
   isLoading = false,
 }: ContactFormProps) {
   const [name, setName] = useState(contact?.name || '')
-  const [email, setEmail] = useState(
-    contact ? nullStringToString(contact.email) || '' : ''
-  )
-  const [phone, setPhone] = useState(
-    contact ? nullStringToString(contact.phone) || '' : ''
-  )
-  const [linkedin, setLinkedin] = useState(
-    contact ? nullStringToString(contact.linkedin) || '' : ''
-  )
+  const [email, setEmail] = useState(contact?.email || '')
+  const [phone, setPhone] = useState(contact?.phone || '')
+  const [linkedin, setLinkedin] = useState(contact?.linkedin || '')
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: FormEvent) => {
@@ -51,71 +45,80 @@ export default function ContactForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div role="alert" aria-live="polite">
+          <ErrorMessage message={error} variant="compact" />
         </div>
       )}
 
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-          Name <span className="text-red-500">*</span>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Name <span className="text-red-500" aria-label="required">*</span>
         </label>
         <input
           type="text"
           id="name"
+          name="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="Enter contact name"
           required
           disabled={isLoading}
+          aria-required="true"
+          aria-invalid={error ? 'true' : 'false'}
         />
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-          Email (optional)
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Email <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <input
           type="email"
           id="email"
+          name="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="email@example.com"
           disabled={isLoading}
+          aria-label="Email (optional)"
         />
       </div>
 
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-          Phone (optional)
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Phone <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <input
           type="tel"
           id="phone"
+          name="phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="+1 (555) 123-4567"
           disabled={isLoading}
+          aria-label="Phone (optional)"
         />
       </div>
 
       <div>
-        <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-1">
-          LinkedIn (optional)
+        <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          LinkedIn <span className="text-gray-500 text-xs">(optional)</span>
         </label>
         <input
           type="url"
           id="linkedin"
+          name="linkedin"
           value={linkedin}
           onChange={(e) => setLinkedin(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
           placeholder="https://linkedin.com/in/username"
           disabled={isLoading}
+          aria-label="LinkedIn (optional)"
         />
       </div>
 

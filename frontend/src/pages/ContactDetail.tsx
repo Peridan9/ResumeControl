@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { contactsAPI } from '../services/api'
 import type { Contact, UpdateContactRequest } from '../types'
-import { nullStringToString, nullTimeToString } from '../utils/helpers'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import ContactForm from '../components/contacts/ContactForm'
+import LoadingState from '../components/ui/LoadingState'
+import ErrorMessage from '../components/ui/ErrorMessage'
+import { formatDateTime } from '../utils/date'
 
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
@@ -40,36 +42,6 @@ export default function ContactDetail() {
     : !contactId
     ? 'Invalid contact ID'
     : null
-
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    } catch {
-      return 'Invalid date'
-    }
-  }
-
-  const formatDateTime = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } catch {
-      return 'Invalid date'
-    }
-  }
 
   const handleEdit = () => {
     setIsEditModalOpen(true)
@@ -140,12 +112,7 @@ export default function ContactDetail() {
   }
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow p-12 text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600">Loading contact details...</p>
-      </div>
-    )
+    return <LoadingState message="Loading contact details..." />
   }
 
   if (error || !contact) {
@@ -154,18 +121,16 @@ export default function ContactDetail() {
         <Button variant="secondary" onClick={() => navigate('/contacts')} className="mb-4">
           ← Back to Contacts
         </Button>
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || 'Contact not found'}
-        </div>
+        <ErrorMessage message={error || 'Contact not found'} />
       </div>
     )
   }
 
-  const contactEmail = nullStringToString(contact.email)
-  const contactPhone = nullStringToString(contact.phone)
-  const contactLinkedin = nullStringToString(contact.linkedin)
-  const createdAt = nullTimeToString(contact.created_at)
-  const updatedAt = nullTimeToString(contact.updated_at)
+  const contactEmail = contact.email
+  const contactPhone = contact.phone
+  const contactLinkedin = contact.linkedin
+  const createdAt = contact.created_at
+  const updatedAt = contact.updated_at
 
   return (
     <div>
@@ -196,8 +161,8 @@ export default function ContactDetail() {
 
       {/* Error Message */}
       {(error || mutationError) && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error || mutationError}
+        <div className="mb-4">
+          <ErrorMessage message={error || mutationError || ''} />
         </div>
       )}
 

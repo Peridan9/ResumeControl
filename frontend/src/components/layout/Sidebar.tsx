@@ -17,9 +17,9 @@ export default function Sidebar() {
   const location = useLocation()
 
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 shadow-sm min-h-[calc(100vh-4rem)]">
-      <nav className="p-4">
-        <ul className="space-y-2">
+    <aside className="w-64 bg-white dark:bg-gray-800 shadow-sm min-h-[calc(100vh-4rem)]" aria-label="Main navigation">
+      <nav className="p-4" aria-label="Primary navigation">
+        <ul className="space-y-2" role="list">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href
             const Icon = item.icon
@@ -27,13 +27,17 @@ export default function Sidebar() {
               <li key={item.name}>
                 <Link
                   to={item.href}
-                  className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                     isActive
                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <Icon
+                    className={`w-5 h-5 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}
+                    aria-hidden="true"
+                  />
                   <span>{item.name}</span>
                 </Link>
               </li>

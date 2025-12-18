@@ -8,9 +8,10 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import type { Company } from '../../types'
-import { nullStringToString, nullTimeToString } from '../../utils/helpers'
 import DataTable, { Column } from '../ui/DataTable'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { formatDate } from '../../utils/date'
+import { useDebounce } from '../../hooks/useDebounce'
 
 interface CompanyTableProps {
   companies: Company[]
@@ -34,19 +35,21 @@ export default function CompanyTable({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null)
 
-  // Filter companies based on search term
+  // Debounce search term to improve performance (400ms delay)
+  const debouncedSearchTerm = useDebounce(searchTerm, 400)
+
+  // Filter companies based on debounced search term
   const filteredCompanies = useMemo(() => {
-    if (!searchTerm.trim()) {
+    if (!debouncedSearchTerm.trim()) {
       return companies
     }
-    const term = searchTerm.toLowerCase()
+    const term = debouncedSearchTerm.toLowerCase()
     return companies.filter(
       (company) =>
         company.name.toLowerCase().includes(term) ||
-        (company.website &&
-          nullStringToString(company.website)?.toLowerCase().includes(term))
+        (company.website && company.website.toLowerCase().includes(term))
     )
-  }, [companies, searchTerm])
+  }, [companies, debouncedSearchTerm])
   const handleDelete = (company: Company) => {
     setCompanyToDelete(company)
     setIsDeleteDialogOpen(true)
@@ -62,20 +65,6 @@ export default function CompanyTable({
 
   const handleRowClick = (company: Company) => {
     navigate(`/companies/${company.id}`)
-  }
-
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    } catch {
-      return 'Invalid date'
-    }
   }
 
   const columns: Column<Company>[] = [
@@ -100,7 +89,7 @@ export default function CompanyTable({
         </div>
       ),
       render: (company) => {
-        const website = nullStringToString(company.website)
+        const website = company.website
         return website ? (
           <a
             href={website}
@@ -125,7 +114,7 @@ export default function CompanyTable({
         </div>
       ),
       render: (company) => {
-        const createdAt = nullTimeToString(company.created_at)
+        const createdAt = company.created_at
         return <span className="text-gray-600">{formatDate(createdAt)}</span>
       },
     },
@@ -171,7 +160,7 @@ export default function CompanyTable({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-      {searchTerm && (
+      {debouncedSearchTerm && (
         <p className="text-sm text-gray-600">
           Showing {filteredCompanies.length} of {companies.length} companies
         </p>
@@ -184,7 +173,7 @@ export default function CompanyTable({
       <DataTable
         data={filteredCompanies}
         columns={columns}
-        emptyMessage={searchTerm ? 'No companies match your search.' : emptyMessage}
+        emptyMessage={debouncedSearchTerm ? 'No companies match your search.' : emptyMessage}
         rowKey={(company) => company.id}
         loading={loading}
         filter={filterContent}

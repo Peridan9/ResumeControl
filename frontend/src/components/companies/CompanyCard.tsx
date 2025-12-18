@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { Company } from '../../types'
-import { nullStringToString, nullTimeToString } from '../../utils/helpers'
 import Button from '../ui/Button'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { formatDateDefault } from '../../utils/date'
 
 interface CompanyCardProps {
   company: Company
@@ -23,8 +23,8 @@ export default function CompanyCard({ company, onEdit, onDelete, isDeleting = fa
     setIsDeleteDialogOpen(false)
   }
 
-  const website = nullStringToString(company.website)
-  const createdAt = nullTimeToString(company.created_at)
+  const website = company.website
+  const createdAt = company.created_at
 
   return (
     <>
@@ -46,7 +46,7 @@ export default function CompanyCard({ company, onEdit, onDelete, isDeleting = fa
             )}
             {createdAt && (
               <p className="text-xs text-gray-500 mt-2">
-                Created: {new Date(createdAt).toLocaleDateString()}
+                Created: {formatDateDefault(createdAt)}
               </p>
             )}
           </div>

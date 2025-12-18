@@ -34,8 +34,55 @@ export function useContacts() {
         return await contactsAPI.create(data.formData as CreateContactRequest)
       }
     },
-    onSuccess: () => {
-      // Invalidate and refetch contacts
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['contacts'] })
+
+      // Snapshot the previous value
+      const previousContacts = queryClient.getQueryData<Contact[]>(['contacts'])
+
+      // Optimistically update to the new value
+      if (data.contact) {
+        // Update existing contact
+        queryClient.setQueryData<Contact[]>(['contacts'], (old = []) =>
+          old.map((contact) =>
+            contact.id === data.contact!.id
+              ? { ...contact, ...data.formData, updated_at: new Date().toISOString() }
+              : contact
+          )
+        )
+        return { previousContacts }
+      } else {
+        // Create new contact - add temporary ID (will be replaced by server response)
+        const tempId = Date.now()
+        const optimisticContact: Contact = {
+          id: tempId, // Temporary ID
+          name: data.formData.name,
+          email: data.formData.email ?? null,
+          phone: data.formData.phone ?? null,
+          linkedin: data.formData.linkedin ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        queryClient.setQueryData<Contact[]>(['contacts'], (old = []) => [...old, optimisticContact])
+        // Store tempId in context for later replacement
+        return { previousContacts, tempId }
+      }
+    },
+    onError: (err, data, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousContacts) {
+        queryClient.setQueryData(['contacts'], context.previousContacts)
+      }
+    },
+    onSuccess: (newContact, data, context) => {
+      // If creating, replace the optimistic contact (with temp ID) with the real one from server
+      if (!data.contact && context && 'tempId' in context) {
+        queryClient.setQueryData<Contact[]>(['contacts'], (old = []) =>
+          old.map((contact) => (contact.id === (context as { tempId: number }).tempId ? newContact : contact))
+        )
+      }
+      // Invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
     },
   })
@@ -45,8 +92,29 @@ export function useContacts() {
     mutationFn: async (id: number) => {
       return await contactsAPI.delete(id)
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['contacts'] })
+
+      // Snapshot the previous value
+      const previousContacts = queryClient.getQueryData<Contact[]>(['contacts'])
+
+      // Optimistically remove the contact
+      queryClient.setQueryData<Contact[]>(['contacts'], (old = []) =>
+        old.filter((contact) => contact.id !== id)
+      )
+
+      // Return a context object with the snapshotted value
+      return { previousContacts }
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousContacts) {
+        queryClient.setQueryData(['contacts'], context.previousContacts)
+      }
+    },
     onSuccess: () => {
-      // Invalidate and refetch contacts
+      // Invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
     },
   })

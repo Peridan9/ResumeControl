@@ -12,11 +12,12 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline'
 import type { Application, Job, Company, Contact } from '../../types'
-import { nullTimeToString, nullStringToString } from '../../utils/helpers'
 import Tooltip from '../ui/Tooltip'
 import DataTable, { Column } from '../ui/DataTable'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import { STATUS_OPTIONS_WITH_ALL, STATUS_COLORS } from '../../constants/status'
+import { STATUS_OPTIONS_WITH_ALL } from '../../constants/status'
+import StatusBadge from '../ui/StatusBadge'
+import { formatDate } from '../../utils/date'
 
 interface ApplicationTableProps {
   applications: Application[]
@@ -77,61 +78,20 @@ export default function ApplicationTable({
   }
 
   // Helper function to get contact by ID
-  // Handles contact_id which can be number, null, or { Int32: number, Valid: boolean }
-  const getContact = (contactId: number | null | undefined | { Int32: number; Valid: boolean }): Contact | undefined => {
+  const getContact = (contactId: number | null | undefined): Contact | undefined => {
     if (!contactId || !contacts) return undefined
-    
-    // Handle sql.NullInt32 format: { Int32: number, Valid: boolean }
-    let actualContactId: number | null = null
-    if (typeof contactId === 'number' && contactId > 0) {
-      actualContactId = contactId
-    } else if (typeof contactId === 'object' && 'Int32' in contactId && 'Valid' in contactId) {
-      if (contactId.Valid && contactId.Int32 > 0) {
-        actualContactId = contactId.Int32
-      }
-    }
-    
-    if (!actualContactId) return undefined
-    return contacts.find((contact) => contact.id === actualContactId)
+    return contacts.find((contact) => contact.id === contactId)
   }
 
   // Helper function to get notes text
-  const getNotesText = (notes: string | null | { String: string; Valid: boolean }): string | null => {
-    return nullStringToString(notes)
+  const getNotesText = (notes: string | null): string | null => {
+    return notes
   }
 
   const handleRowClick = (application: Application) => {
     navigate(`/applications/${application.id}`)
   }
 
-  // Helper function to format date
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    } catch {
-      return 'Invalid date'
-    }
-  }
-
-  // Helper function to format null time
-  const formatNullTime = (nullTime: string | null | { Time: string; Valid: boolean }): string => {
-    if (nullTime === null) {
-      return 'N/A'
-    }
-    const timeStr = nullTimeToString(nullTime)
-    return formatDate(timeStr)
-  }
-
-  // Helper function to get status badge color
-  const getStatusBadgeColor = (status: string): string => {
-    return STATUS_COLORS[status.toLowerCase()] || 'bg-gray-100 text-gray-800'
-  }
 
   const columns: Column<Application>[] = [
     {
@@ -179,9 +139,7 @@ export default function ApplicationTable({
         </div>
       ),
       render: (application) => (
-        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getStatusBadgeColor(application.status)}`}>
-          {application.status}
-        </span>
+        <StatusBadge status={application.status} size="sm" />
       ),
     },
     {
@@ -205,7 +163,7 @@ export default function ApplicationTable({
         </div>
       ),
       render: (application) => (
-        <span className="text-gray-600 whitespace-nowrap">{formatNullTime(application.updated_at)}</span>
+        <span className="text-gray-600 whitespace-nowrap">{formatDate(application.updated_at)}</span>
       ),
     },
     {
@@ -325,7 +283,17 @@ export default function ApplicationTable({
           }}
           onConfirm={handleDeleteConfirm}
           title="Delete Application"
-          message="Are you sure you want to delete this application? This action cannot be undone."
+          message={
+            applicationToDelete
+              ? (() => {
+                  const job = getJob(applicationToDelete.id)
+                  const company = job ? getCompany(job.company_id) : undefined
+                  const jobTitle = job?.title || 'Unknown Position'
+                  const companyName = company?.name || 'Unknown Company'
+                  return `Are you sure you want to delete the application for "${jobTitle}" at "${companyName}"? This action cannot be undone.`
+                })()
+              : 'Are you sure you want to delete this application? This action cannot be undone.'
+          }
           confirmText="Delete"
           cancelText="Cancel"
           variant="danger"

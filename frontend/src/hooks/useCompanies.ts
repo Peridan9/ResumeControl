@@ -34,8 +34,52 @@ export function useCompanies() {
         return await companiesAPI.create(data.formData as CreateCompanyRequest)
       }
     },
-    onSuccess: () => {
-      // Invalidate and refetch companies
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['companies'] })
+
+      // Snapshot the previous value
+      const previousCompanies = queryClient.getQueryData<Company[]>(['companies'])
+
+      // Optimistically update to the new value
+      if (data.company) {
+        // Update existing company
+        queryClient.setQueryData<Company[]>(['companies'], (old = []) =>
+          old.map((company) =>
+            company.id === data.company!.id
+              ? { ...company, ...data.formData, updated_at: new Date().toISOString() }
+              : company
+          )
+        )
+      } else {
+        // Create new company - add temporary ID (will be replaced by server response)
+        const tempId = Date.now()
+        const optimisticCompany: Company = {
+          id: tempId, // Temporary ID
+          name: data.formData.name,
+          website: data.formData.website ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        queryClient.setQueryData<Company[]>(['companies'], (old = []) => [...old, optimisticCompany])
+        // Store tempId in context for later replacement
+        return { previousCompanies, tempId }
+      }
+    },
+    onError: (err, data, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousCompanies) {
+        queryClient.setQueryData(['companies'], context.previousCompanies)
+      }
+    },
+    onSuccess: (newCompany, data, context) => {
+      // If creating, replace the optimistic company (with temp ID) with the real one from server
+      if (!data.company && context && 'tempId' in context) {
+        queryClient.setQueryData<Company[]>(['companies'], (old = []) =>
+          old.map((company) => (company.id === (context as { tempId: number }).tempId ? newCompany : company))
+        )
+      }
+      // Invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ['companies'] })
     },
   })
@@ -45,8 +89,29 @@ export function useCompanies() {
     mutationFn: async (id: number) => {
       return await companiesAPI.delete(id)
     },
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['companies'] })
+
+      // Snapshot the previous value
+      const previousCompanies = queryClient.getQueryData<Company[]>(['companies'])
+
+      // Optimistically remove the company
+      queryClient.setQueryData<Company[]>(['companies'], (old = []) =>
+        old.filter((company) => company.id !== id)
+      )
+
+      // Return a context object with the snapshotted value
+      return { previousCompanies }
+    },
+    onError: (err, id, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousCompanies) {
+        queryClient.setQueryData(['companies'], context.previousCompanies)
+      }
+    },
     onSuccess: () => {
-      // Invalidate and refetch companies
+      // Invalidate to ensure we have the latest data
       queryClient.invalidateQueries({ queryKey: ['companies'] })
     },
   })

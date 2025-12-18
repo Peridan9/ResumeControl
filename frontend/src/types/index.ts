@@ -1,50 +1,13 @@
-// Type definitions matching backend models
-// Note: Backend returns sql.NullString and sql.NullTime as objects
-// These types handle both formats for compatibility
+// Type definitions - normalized types for frontend use
+// Backend null types are normalized at the API boundary (see services/transformers.ts)
 
-type NullString = string | null | { String: string; Valid: boolean }
-type NullTime = string | { Time: string; Valid: boolean }
-type NullInt32 = number | null | { Int32: number; Valid: boolean }
-
-export interface Company {
-  id: number
-  name: string
-  website: NullString
-  created_at: NullTime
-  updated_at: NullTime
-}
-
-export interface Job {
-  id: number
-  application_id: number
-  company_id: number
-  title: string
-  description: NullString
-  requirements: NullString
-  location: NullString
-  created_at: NullTime
-  updated_at: NullTime
-}
-
-export interface Application {
-  id: number
-  contact_id?: NullInt32
-  status: string
-  applied_date: string
-  notes: NullString
-  created_at: NullTime
-  updated_at: NullTime
-}
-
-export interface Contact {
-  id: number
-  name: string
-  email: NullString
-  phone: NullString
-  linkedin: NullString
-  created_at: NullTime
-  updated_at: NullTime
-}
+// Re-export normalized types from transformers
+export type {
+  NormalizedCompany as Company,
+  NormalizedJob as Job,
+  NormalizedApplication as Application,
+  NormalizedContact as Contact,
+} from '../services/transformers'
 
 // Request/Response types
 export interface CreateCompanyRequest {
