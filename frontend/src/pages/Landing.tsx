@@ -112,23 +112,33 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="text-3xl mb-4">🏢</div>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow relative">
+            <div className="absolute top-4 right-4">
+              <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-semibold px-2.5 py-1 rounded-full">
+                Under Development
+              </span>
+            </div>
+            <div className="text-3xl mb-4">✏️</div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Manage Companies
+              Tailor Resume Per Application
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Store company information, track your interactions, and maintain a database of potential employers.
+              Customize your resume for each job application to highlight the most relevant skills and experiences.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div className="text-3xl mb-4">👥</div>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow relative">
+            <div className="absolute top-4 right-4">
+              <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-semibold px-2.5 py-1 rounded-full">
+                Under Development
+              </span>
+            </div>
+            <div className="text-3xl mb-4">🤖</div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Store Contacts
+              Prepare to an Interview Using AI Chat
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Keep contact information for recruiters, hiring managers, and networking connections organized.
+              Practice interview questions and get AI-powered feedback to improve your interview performance.
             </p>
           </div>
         </div>

@@ -22,6 +22,9 @@ const Applications = lazy(() => import('./pages/Applications'))
 const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail'))
 const CompanyDetail = lazy(() => import('./pages/CompanyDetail'))
 const ContactDetail = lazy(() => import('./pages/ContactDetail'))
+const Profile = lazy(() => import('./pages/Profile'))
+const TailorResume = lazy(() => import('./pages/TailorResume'))
+const InterviewTraining = lazy(() => import('./pages/InterviewTraining'))
 
 // Create a QueryClient instance with default options
 const queryClient = new QueryClient({
@@ -173,6 +176,42 @@ function AppRoutes() {
               <ProtectedRoute>
                 <Layout>
                   <ContactDetail />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
+          }
+        />
+        <Route
+          path="/tailor-resume"
+          element={
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <TailorResume />
+                </Layout>
+              </ProtectedRoute>
+            </SuspenseWrapper>
+          }
+        />
+        <Route
+          path="/interview-training"
+          element={
+            <SuspenseWrapper>
+              <ProtectedRoute>
+                <Layout>
+                  <InterviewTraining />
                 </Layout>
               </ProtectedRoute>
             </SuspenseWrapper>

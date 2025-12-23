@@ -1,16 +1,18 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   Squares2X2Icon,
-  BuildingOfficeIcon,
   UserIcon,
   DocumentTextIcon,
+  ScissorsIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Squares2X2Icon },
-  { name: 'Companies', href: '/companies', icon: BuildingOfficeIcon },
   { name: 'Contacts', href: '/contacts', icon: UserIcon },
   { name: 'Applications', href: '/applications', icon: DocumentTextIcon },
+  { name: 'Tailor Resume', href: '/tailor-resume', icon: ScissorsIcon },
+  { name: 'Interview Training', href: '/interview-training', icon: AcademicCapIcon },
 ]
 
 export default function Sidebar() {

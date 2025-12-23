@@ -20,7 +20,7 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <Link to="/" className="text-2xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
-              ResumeControl
+              ApplyTrack
             </Link>
             <div className="flex items-center gap-4">
               <Link to="/login" aria-label="Sign in to your account">
@@ -61,9 +61,9 @@ export default function Navbar() {
             <Link
               to="/dashboard"
               className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-              aria-label="ResumeControl home"
+              aria-label="ApplyTrack home"
             >
-              ResumeControl
+              ApplyTrack
             </Link>
           </div>
           <div className="flex items-center space-x-4">

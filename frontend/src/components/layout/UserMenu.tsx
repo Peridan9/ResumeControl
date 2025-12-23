@@ -84,10 +84,10 @@ export default function UserMenu() {
   const handleLogout = async () => {
     try {
       await logout()
-      navigate('/login')
+      navigate('/')
     } catch (error) {
       console.error('Logout error:', error)
-      navigate('/login')
+      navigate('/')
     } finally {
       setIsOpen(false)
     }
@@ -154,8 +154,7 @@ export default function UserMenu() {
             <button
               onClick={() => {
                 setIsOpen(false)
-                // Navigate to profile page when implemented
-                // navigate('/profile')
+                navigate('/profile')
               }}
               className="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700"
               role="menuitem"
