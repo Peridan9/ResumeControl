@@ -22,3 +22,5 @@ function OverviewCards({ totalCompanies, totalApplications }: OverviewCardsProps
 
 export default memo(OverviewCards)
 
+
+

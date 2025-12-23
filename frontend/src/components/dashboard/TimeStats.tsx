@@ -30,3 +30,5 @@ function TimeStats({ applicationsThisMonth, applicationsThisWeek, applicationsTo
 
 export default memo(TimeStats)
 
+
+
