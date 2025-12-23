@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { ErrorInfo } from 'react'
 import Button from './ui/Button'
 
@@ -57,7 +57,7 @@ export default function ErrorFallback({
           </p>
         </div>
 
-        {process.env.NODE_ENV === 'development' && error && (
+        {import.meta.env.DEV && error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-md">
             <h2 className="text-sm font-semibold text-red-800 dark:text-red-400 mb-2">
               Error Details (Development Only)
