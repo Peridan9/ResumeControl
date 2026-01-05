@@ -49,6 +49,22 @@ jobs:
         run: |
           mkdir -p deploy/architecture
           cp -r docs/architecture/dist/* deploy/architecture/
+          # Create root index.html that redirects to architecture
+          cat > deploy/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta http-equiv="refresh" content="0; url=/ResumeControl/architecture/">
+              <link rel="canonical" href="/ResumeControl/architecture/">
+              <title>ResumeControl - Redirecting to Architecture Docs</title>
+          </head>
+          <body>
+              <p>Redirecting to <a href="/ResumeControl/architecture/">architecture documentation</a>...</p>
+              <script>window.location.href = '/ResumeControl/architecture/';</script>
+          </body>
+          </html>
+          EOF
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
