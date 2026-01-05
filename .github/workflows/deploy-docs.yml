@@ -45,13 +45,18 @@ jobs:
           cd docs/architecture
           npm run build
       
+      - name: Prepare deployment
+        run: |
+          mkdir -p deploy/architecture
+          cp -r docs/architecture/dist/* deploy/architecture/
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/architecture/dist
+          path: deploy
       
       - name: Deploy to GitHub Pages
         id: deployment
