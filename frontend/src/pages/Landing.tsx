@@ -1,6 +1,6 @@
 // Landing page for ResumeControl - public page with information about the system
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Button from '../components/ui/Button'
@@ -11,6 +11,8 @@ export default function Landing() {
   const { isAuthenticated, loading } = useAuth()
   const navigate = useNavigate()
   const heroImageRef = useRef<HTMLDivElement>(null)
+  const dashboardSectionRef = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -44,6 +46,35 @@ export default function Landing() {
 
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Scroll-triggered animation for dashboard section
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true)
+            // Optional: stop observing after animation triggers
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      {
+        threshold: 0.2, // Trigger when 20% of element is visible
+        rootMargin: '0px 0px -100px 0px', // Trigger slightly before element enters viewport
+      }
+    )
+
+    if (dashboardSectionRef.current) {
+      observer.observe(dashboardSectionRef.current)
+    }
+
+    return () => {
+      if (dashboardSectionRef.current) {
+        observer.unobserve(dashboardSectionRef.current)
+      }
+    }
   }, [])
 
   // Show loading state while checking auth
@@ -143,18 +174,60 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Dashboard Preview Section */}
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow mb-16">
-          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
-            Powerful Dashboard
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-            Get insights into your job search with statistics, status breakdowns, and recent activity tracking.
-          </p>
-          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-12 text-center">
-            <p className="text-gray-500 dark:text-gray-400">
-              Dashboard preview coming soon
-            </p>
+        {/* Dashboard Preview Section with Scroll Animation */}
+        <div 
+          ref={dashboardSectionRef}
+          className="mb-16 overflow-hidden"
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 md:p-12">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+              {/* Text Content - Slides from left */}
+              <div 
+                className={`transition-all duration-1000 ease-out ${
+                  isVisible 
+                    ? 'opacity-100 translate-x-0' 
+                    : 'opacity-0 -translate-x-12'
+                }`}
+              >
+                <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                  Powerful Dashboard
+                </h3>
+                <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
+                  Get insights into your job search with comprehensive statistics and visual breakdowns.
+                </p>
+                <ul className="space-y-3 text-gray-600 dark:text-gray-400">
+                  <li className="flex items-start">
+                    <span className="text-green-500 mr-2">✓</span>
+                    <span>Track application status in real-time</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-500 mr-2">✓</span>
+                    <span>View time-based statistics and trends</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-green-500 mr-2">✓</span>
+                    <span>Monitor recent activity and updates</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Image - Slides from right */}
+              <div 
+                className={`transition-all duration-1000 ease-out delay-200 ${
+                  isVisible 
+                    ? 'opacity-100 translate-x-0' 
+                    : 'opacity-0 translate-x-12'
+                }`}
+              >
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 shadow-inner">
+                  <img 
+                    src="/dashboard_review.png" 
+                    alt="Dashboard Preview" 
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
