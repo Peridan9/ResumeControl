@@ -1,0 +1,61 @@
+.custom-node {
+    padding: 15px 20px;
+    border-radius: 8px;
+    border: 2px solid;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
+    text-align: center;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.custom-node:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+}
+
+.custom-node.selected {
+    border-width: 3px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.custom-node.frontend {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.custom-node.backend {
+    border-color: #10b981;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.custom-node.database {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.custom-node.external {
+    border-color: #8b5cf6;
+    background: linear-gradient(135deg, #f5f3ff 0%, #e9d5ff 100%);
+}
+
+.custom-node-title {
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #1f2937;
+}
+
+.custom-node-subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 5px;
+}
+
+.custom-node-tech {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+}
+
