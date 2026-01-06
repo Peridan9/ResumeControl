@@ -7,6 +7,8 @@ import {
   Background,
   Controls,
   MiniMap,
+  Handle,
+  Position,
 } from '@xyflow/react';
 import CustomNode from './components/CustomNode';
 import './App.css';
@@ -267,6 +269,12 @@ function Flow() {
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-left"
+          nodesDraggable={false}
+          nodesConnectable={false}
+          panOnDrag={false}
+          zoomOnScroll={false}
+          zoomOnPinch={false}
+          zoomOnDoubleClick={false}
         >
           <Background gap={16} size={1} />
           <Controls />
@@ -286,6 +294,7 @@ function Flow() {
       </div>
       
       <NodeInfoPanel />
+      <DatabaseSchemaModal />
     </div>
   );
 }
@@ -296,6 +305,14 @@ function NodeInfoPanel() {
   React.useEffect(() => {
     const handleNodeClick = (event) => {
       const nodeData = event.detail;
+      // If database node is clicked, trigger database modal instead
+      // Check by category since id is not in data object
+      if (nodeData.category === 'database' && nodeData.label === 'PostgreSQL') {
+        setSelectedNode(null); // Clear info panel
+        const dbEvent = new CustomEvent('showDatabaseSchema', { detail: nodeData });
+        window.dispatchEvent(dbEvent);
+        return;
+      }
       setSelectedNode(nodeData);
     };
 
@@ -329,6 +346,231 @@ function NodeInfoPanel() {
         ))}
       </div>
       <button className="close-btn" onClick={() => setSelectedNode(null)}>×</button>
+    </div>
+  );
+}
+
+// ERD Table Node Component
+function ERDTableNode({ data, selected }) {
+  const { table } = data;
+  
+  return (
+    <div className={`erd-table-node ${selected ? 'selected' : ''}`}>
+      <div className="erd-table-header">
+        <strong>{table.name}</strong>
+      </div>
+      <div className="erd-table-fields">
+        {table.fields.map((field, idx) => (
+          <div key={idx} className={`erd-field ${field.primary ? 'primary-key' : ''} ${field.foreignKey ? 'foreign-key' : ''}`}>
+            <span className="erd-field-name">
+              {field.primary && <span className="pk-indicator">🔑</span>}
+              {field.foreignKey && <span className="fk-indicator">🔗</span>}
+              {field.name}
+            </span>
+            <span className="erd-field-type">{field.type}</span>
+          </div>
+        ))}
+      </div>
+      <Handle type="source" position={Position.Right} id="right" />
+      <Handle type="source" position={Position.Left} id="left" />
+      <Handle type="source" position={Position.Top} id="top" />
+      <Handle type="source" position={Position.Bottom} id="bottom" />
+      <Handle type="target" position={Position.Right} id="right" />
+      <Handle type="target" position={Position.Left} id="left" />
+      <Handle type="target" position={Position.Top} id="top" />
+      <Handle type="target" position={Position.Bottom} id="bottom" />
+    </div>
+  );
+}
+
+function DatabaseSchemaModal() {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleShowDatabase = () => {
+      setIsOpen(true);
+    };
+
+    window.addEventListener('showDatabaseSchema', handleShowDatabase);
+    return () => window.removeEventListener('showDatabaseSchema', handleShowDatabase);
+  }, []);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={() => setIsOpen(false)}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={() => setIsOpen(false)}>×</button>
+        <DatabaseSchema />
+      </div>
+    </div>
+  );
+}
+
+function DatabaseSchema() {
+  const tables = [
+    {
+      id: 'users',
+      name: 'users',
+      fields: [
+        { name: 'id', type: 'SERIAL', primary: true },
+        { name: 'email', type: 'VARCHAR(255)', unique: true, notNull: true },
+        { name: 'password_hash', type: 'VARCHAR(255)', notNull: true },
+        { name: 'name', type: 'VARCHAR(255)' },
+        { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'last_login', type: 'TIMESTAMP' }
+      ]
+    },
+    {
+      id: 'companies',
+      name: 'companies',
+      fields: [
+        { name: 'id', type: 'SERIAL', primary: true },
+        { name: 'user_id', type: 'INTEGER', foreignKey: 'users', notNull: true },
+        { name: 'name', type: 'VARCHAR(255)', notNull: true },
+        { name: 'website', type: 'VARCHAR(255)' },
+        { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+      ]
+    },
+    {
+      id: 'jobs',
+      name: 'jobs',
+      fields: [
+        { name: 'id', type: 'SERIAL', primary: true },
+        { name: 'company_id', type: 'INTEGER', foreignKey: 'companies', notNull: true },
+        { name: 'title', type: 'VARCHAR(255)', notNull: true },
+        { name: 'description', type: 'TEXT' },
+        { name: 'requirements', type: 'TEXT' },
+        { name: 'location', type: 'VARCHAR(255)' },
+        { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+      ]
+    },
+    {
+      id: 'contacts',
+      name: 'contacts',
+      fields: [
+        { name: 'id', type: 'SERIAL', primary: true },
+        { name: 'user_id', type: 'INTEGER', foreignKey: 'users', notNull: true },
+        { name: 'name', type: 'VARCHAR(255)', notNull: true },
+        { name: 'email', type: 'VARCHAR(255)' },
+        { name: 'phone', type: 'VARCHAR(50)' },
+        { name: 'linkedin', type: 'VARCHAR(500)' },
+        { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+      ]
+    },
+    {
+      id: 'applications',
+      name: 'applications',
+      fields: [
+        { name: 'id', type: 'SERIAL', primary: true },
+        { name: 'user_id', type: 'INTEGER', foreignKey: 'users', notNull: true },
+        { name: 'job_id', type: 'INTEGER', foreignKey: 'jobs', notNull: true },
+        { name: 'contact_id', type: 'INTEGER', foreignKey: 'contacts' },
+        { name: 'status', type: 'VARCHAR(50)', default: "'applied'", notNull: true },
+        { name: 'applied_date', type: 'DATE', notNull: true },
+        { name: 'notes', type: 'TEXT' },
+        { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' }
+      ]
+    },
+    {
+      id: 'refresh_tokens',
+      name: 'refresh_tokens',
+      fields: [
+        { name: 'id', type: 'SERIAL', primary: true },
+        { name: 'user_id', type: 'INTEGER', foreignKey: 'users', notNull: true },
+        { name: 'token_hash', type: 'VARCHAR(255)', unique: true, notNull: true },
+        { name: 'expires_at', type: 'TIMESTAMP', notNull: true },
+        { name: 'created_at', type: 'TIMESTAMP', default: 'CURRENT_TIMESTAMP' },
+        { name: 'revoked_at', type: 'TIMESTAMP' }
+      ]
+    }
+  ];
+
+  // Create ERD nodes - positioned for better visibility with increased spacing
+  const erdNodes = [
+    { id: 'users', type: 'erdTable', position: { x: 50, y: 50 }, data: { table: tables[0] } },
+    { id: 'companies', type: 'erdTable', position: { x: 350, y: 50 }, data: { table: tables[1] } },
+    { id: 'jobs', type: 'erdTable', position: { x: 650, y: 50 }, data: { table: tables[2] } },
+    { id: 'contacts', type: 'erdTable', position: { x: 50, y: 450 }, data: { table: tables[3] } },
+    { id: 'applications', type: 'erdTable', position: { x: 650, y: 450 }, data: { table: tables[4] } },
+    { id: 'refresh_tokens', type: 'erdTable', position: { x: 350, y: 450 }, data: { table: tables[5] } }
+  ];
+
+  // Create ERD edges based on foreign keys
+  const erdEdges = [
+    { id: 'e-users-companies', source: 'users', target: 'companies', sourceHandle: 'right', targetHandle: 'left', type: 'straight', style: { stroke: '#667eea', strokeWidth: 2 }, label: '1:N' },
+    { id: 'e-users-contacts', source: 'users', target: 'contacts', sourceHandle: 'bottom', targetHandle: 'top', type: 'straight', style: { stroke: '#667eea', strokeWidth: 2 }, label: '1:N' },
+    { id: 'e-users-applications', source: 'users', target: 'applications', sourceHandle: 'right', targetHandle: 'left', type: 'straight', style: { stroke: '#667eea', strokeWidth: 2 }, label: '1:N' },
+    { id: 'e-users-refresh_tokens', source: 'users', target: 'refresh_tokens', sourceHandle: 'right', targetHandle: 'left', type: 'straight', style: { stroke: '#667eea', strokeWidth: 2 }, label: '1:N' },
+    { id: 'e-companies-jobs', source: 'companies', target: 'jobs', sourceHandle: 'right', targetHandle: 'left', type: 'straight', style: { stroke: '#10b981', strokeWidth: 2 }, label: '1:N' },
+    { id: 'e-jobs-applications', source: 'jobs', target: 'applications', sourceHandle: 'bottom', targetHandle: 'top', type: 'straight', style: { stroke: '#f59e0b', strokeWidth: 2 }, label: '1:N' },
+    { id: 'e-contacts-applications', source: 'contacts', target: 'applications', sourceHandle: 'right', targetHandle: 'left', type: 'straight', style: { stroke: '#8b5cf6', strokeWidth: 2 }, label: '1:N' }
+  ];
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(erdNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(erdEdges);
+  const reactFlowInstance = React.useRef(null);
+
+  const onInit = useCallback((instance) => {
+    reactFlowInstance.current = instance;
+    instance.fitView({ padding: 0.2 });
+  }, []);
+
+  const erdNodeTypes = React.useMemo(() => ({
+    erdTable: ERDTableNode
+  }), []);
+
+  return (
+    <div className="database-schema-erd">
+      <h2>Database Schema - ERD Diagram</h2>
+      <p className="schema-description">
+        Entity Relationship Diagram showing the PostgreSQL database structure for ResumeControl.
+      </p>
+      <div className="erd-container">
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onInit={onInit}
+            nodeTypes={erdNodeTypes}
+            fitView
+            nodesDraggable={true}
+            nodesConnectable={false}
+            panOnDrag={true}
+            zoomOnScroll={true}
+            attributionPosition="bottom-left"
+            defaultEdgeOptions={{
+              type: 'straight',
+              markerEnd: { type: 'arrowclosed' },
+            }}
+            connectionLineType="straight"
+          >
+            <Background gap={20} size={1} />
+            <Controls />
+            <MiniMap
+              nodeColor="#667eea"
+              maskColor="rgba(0, 0, 0, 0.1)"
+            />
+          </ReactFlow>
+        </ReactFlowProvider>
+      </div>
+      <div className="schema-footer">
+        <a 
+          href="https://github.com/peridan9/ResumeControl/tree/main/backend/sql/schema" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="schema-link"
+        >
+          View Schema Files on GitHub →
+        </a>
+      </div>
     </div>
   );
 }
