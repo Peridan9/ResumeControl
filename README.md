@@ -10,6 +10,9 @@ ResumeControl helps you organize your job search by tracking applications, manag
 
 **Development:** This project is being developed in [Cursor](https://cursor.sh/) with tasks and problems tracked in [Linear](https://linear.app/).
 
+See the [architecture diagram](https://peridan9.github.io/ResumeControl/architecture/) for a high-level system overview.
+
+
 ## Technologies
 
 ### Backend
@@ -169,3 +172,4 @@ The frontend automatically handles token management, refresh, and retry logic.
 ## License
 
 ISC
+
