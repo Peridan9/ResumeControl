@@ -28,3 +28,6 @@ node_modules
 TODO.md
 problems.md
 
+# Scripts
+scripts/
+scripts/push_local_db_to_neon.sh
