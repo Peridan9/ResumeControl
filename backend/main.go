@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -23,9 +24,9 @@ func main() {
 	}
 
 	// Get database URL from environment
-	dbURL := os.Getenv("DB_URL")
+	dbURL := os.Getenv("NEON_DB_URL")
 	if dbURL == "" {
-		log.Fatal("DB_URL environment variable is not set")
+		log.Fatal("NEON_DB_URL environment variable is not set")
 	}
 
 	// Connect to database
@@ -37,14 +38,24 @@ func main() {
 	defer db.Close() // Close connection when main function exits
 
 	// Configure connection pool settings
-	// These settings optimize database connection usage and prevent connection exhaustion
-	db.SetMaxOpenConns(25)                 // Maximum number of open connections to the database
-	db.SetMaxIdleConns(5)                  // Maximum number of idle connections in the pool
-	db.SetConnMaxLifetime(5 * time.Minute) // Maximum amount of time a connection may be reused
+	// Optimized for Neon serverless Postgres to reduce idle connections and enable scale-to-zero
+	// Get environment to adjust pool settings accordingly
+	env := os.Getenv("ENV")
+	if env == "production" {
+		db.SetMaxOpenConns(15)              // Moderate for production workloads
+		db.SetMaxIdleConns(3)               // Low idle count to enable scale-to-zero
+	} else {
+		db.SetMaxOpenConns(10)              // Lower for dev/staging
+		db.SetMaxIdleConns(2)               // Minimal idle connections
+	}
+	db.SetConnMaxIdleTime(2 * time.Minute)  // Close idle connections quickly to reduce CU costs
+	db.SetConnMaxLifetime(30 * time.Minute) // Reasonable upper bound to prevent stale connections
 
-	// Test the connection
-	if err := db.Ping(); err != nil {
-		log.Fatalf("❌ Failed to ping database: %v", err)
+	// Test the connection with timeout to handle cold starts gracefully
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		log.Fatalf("❌ Failed to ping database: %v (may be cold start, check Neon dashboard)", err)
 	}
 	log.Println("✅ Successfully connected to database!")
 
@@ -55,7 +66,6 @@ func main() {
 	log.Println("✅ JWT authentication initialized!")
 
 	// Set Gin mode based on environment
-	env := os.Getenv("ENV")
 	if env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -107,8 +117,12 @@ func main() {
 
 	// Health check endpoint (now includes DB status)
 	r.GET("/api/health", func(c *gin.Context) {
-		// Test database connection again
-		if err := db.Ping(); err != nil {
+		// Use lightweight query with timeout for better cold start handling
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		var result int
+		if err := db.QueryRowContext(ctx, "SELECT 1").Scan(&result); err != nil {
 			c.JSON(500, gin.H{
 				"status":  "error",
 				"message": "Database connection failed",

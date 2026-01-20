@@ -6,7 +6,7 @@ Go backend API for ResumeControl application - built from the bottom up for lear
 
 - **Language:** Go 1.21+
 - **Framework:** Gin (web framework)
-- **Database:** PostgreSQL
+- **Database:** PostgreSQL (Neon serverless)
 - **Migrations:** goose (will be added in Phase 2)
 - **Query Tool:** sqlc (will be added in Step 4)
 
@@ -32,11 +32,19 @@ This project is built **bottom-up** - we start simple and add complexity only wh
    go mod download
    ```
 
-2. **Set up environment (optional):**
+2. **Set up environment variables:**
    ```bash
    cp .env.example .env
-   # Edit .env if needed (defaults work fine for now)
+   # Edit .env and set NEON_DB_URL with your Neon database connection string
    ```
+   
+   Required environment variables:
+   - `NEON_DB_URL` - Neon database connection string (should include `-pooler` for pooled connections)
+   
+   Optional environment variables:
+   - `ENV` - Environment mode (`production` or dev/staging, affects connection pool settings)
+   - `PORT` - Server port (default: 8080)
+   - `FRONTEND_URL` - Frontend URL for CORS (default: http://localhost:3000)
 
 3. **Run the server:**
    ```bash
@@ -114,6 +122,61 @@ go test -v -run TestHealthEndpoint
 ```
 
 **Note:** Tests require `DB_URL` environment variable. Create a `.env` file with your database connection string.
+
+## Neon Database Configuration
+
+This application is optimized for Neon serverless Postgres. The connection handling is configured to minimize compute unit (CU) costs by reducing idle connections and enabling scale-to-zero.
+
+### Connection Pooling
+
+The application uses Neon's pooled connection (via PgBouncer) by default. The `NEON_DB_URL` should contain `-pooler` in the endpoint URL.
+
+**Pooled Connection (Default):**
+- Used for all application traffic
+- Supports up to ~10,000 client connections
+- Multiplexes to fewer backend Postgres connections
+- Optimized for cost and scalability
+
+**Direct Connection (Optional):**
+- Use `NEON_DB_URL_DIRECT` for migrations or admin tasks if needed
+- Required for operations that need session state persistence
+- Not recommended for regular application traffic
+
+### Connection Pool Settings
+
+The application automatically adjusts connection pool settings based on the `ENV` environment variable:
+
+**Production (`ENV=production`):**
+- `MaxOpenConns`: 15
+- `MaxIdleConns`: 3
+- `ConnMaxIdleTime`: 2 minutes
+- `ConnMaxLifetime`: 30 minutes
+
+**Development/Staging (default):**
+- `MaxOpenConns`: 10
+- `MaxIdleConns`: 2
+- `ConnMaxIdleTime`: 2 minutes
+- `ConnMaxLifetime`: 30 minutes
+
+These settings are optimized to:
+- Reduce idle connections (enables scale-to-zero)
+- Minimize compute unit costs
+- Handle cold starts gracefully with timeout contexts
+- Prevent connection exhaustion
+
+### Cold Start Handling
+
+The application includes timeout contexts for database operations to handle Neon's scale-to-zero cold starts gracefully:
+- Initial connection: 10-second timeout
+- Health check: 5-second timeout
+- Uses lightweight queries instead of blocking operations
+
+### Migration Considerations
+
+When running database migrations (using goose), you may need to use a direct connection string if your migrations require session state:
+- Use `NEON_DB_URL_DIRECT` if available
+- Or use a non-pooled connection string for migrations
+- Regular application queries should always use the pooled connection
 
 ## API Endpoints
 
