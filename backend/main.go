@@ -116,7 +116,8 @@ func main() {
 	r.Use(cors.New(corsConfig))
 
 	// Health check endpoint (now includes DB status)
-	r.GET("/api/health", func(c *gin.Context) {
+	// Support both GET and HEAD methods for health checks
+	healthHandler := func(c *gin.Context) {
 		// Use lightweight query with timeout for better cold start handling
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
@@ -136,7 +137,9 @@ func main() {
 			"message":  "ResumeControl API is running",
 			"database": "connected",
 		})
-	})
+	}
+	r.GET("/api/health", healthHandler)
+	r.HEAD("/api/health", healthHandler)
 
 	// Initialize handlers config and setup routes
 	cfg := handlers.Config{

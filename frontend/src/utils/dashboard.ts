@@ -1,6 +1,5 @@
 import type { Application, Job, Company } from '../types'
 import { STATUS_OPTIONS } from '../constants/status'
-import { formatDate } from './date'
 
 /**
  * Calculate status breakdown from applications

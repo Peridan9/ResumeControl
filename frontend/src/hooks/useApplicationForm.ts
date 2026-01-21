@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react'
-import type { Application, Job, Company, Contact } from '../types'
+import type { Application, Job, Company } from '../types'
 import { useFormDraft } from './useFormDraft'
 import { DEBOUNCE_DELAY } from '../constants/timing'
 

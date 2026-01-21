@@ -70,8 +70,9 @@ export function useApplicationDetail(applicationId: number | null) {
     if (!application?.contact_id) return null
     const cid = application.contact_id
     if (typeof cid === 'number' && cid > 0) return cid
-    if (typeof cid === 'object' && 'Int32' in cid && 'Valid' in cid) {
-      if (cid.Valid && cid.Int32 > 0) return cid.Int32
+    if (typeof cid === 'object' && cid !== null && 'Int32' in cid && 'Valid' in cid) {
+      const typedCid = cid as { Valid: boolean; Int32: number }
+      if (typedCid.Valid && typedCid.Int32 > 0) return typedCid.Int32
     }
     return null
   }, [application?.contact_id])
@@ -213,7 +214,7 @@ export function useApplicationDetail(applicationId: number | null) {
         previousCompanies,
       }
     },
-    onError: (err, formData, context) => {
+    onError: (_err, _formData, context) => {
       // If the mutation fails, roll back all optimistic updates
       if (context?.previousApplication) {
         queryClient.setQueryData(['application', applicationId], context.previousApplication)
@@ -286,7 +287,7 @@ export function useApplicationDetail(applicationId: number | null) {
       // Return context with snapshots
       return { previousApplications, previousJobs }
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // If the mutation fails, roll back all optimistic updates
       if (context?.previousApplications) {
         queryClient.setQueryData(['applications'], context.previousApplications)

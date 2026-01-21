@@ -33,8 +33,6 @@ export default function ApplicationForm({
   onCancel,
   isLoading = false,
 }: ApplicationFormProps) {
-  const isEditMode = !!application
-  
   // Ensure contacts is always an array (handle null/undefined from React Query)
   const safeContacts = contacts || []
 

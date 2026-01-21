@@ -1,0 +1,83 @@
+services:
+  # Backend service - Go API server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resumecontrol-backend
+    environment:
+      # Database connection (REQUIRED - must be set in .env file or environment)
+      - NEON_DB_URL=${NEON_DB_URL}
+      # Server port (default: 8080)
+      - PORT=8080
+      # Environment mode (production/development)
+      - ENV=${ENV:-production}
+      # Frontend URL for CORS (nginx will serve on port 80, so use http://localhost)
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      # JWT Secret for authentication (REQUIRED)
+      - JWT_SECRET=${JWT_SECRET}
+    # Backend is only accessible within Docker network (not exposed to host)
+    # Nginx will proxy requests to this service
+    networks:
+      - resumecontrol-network
+    # Health check to ensure backend is ready
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "-", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Restart policy
+    restart: unless-stopped
+
+  # Frontend service - React/Vite application (built and served as static files)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resumecontrol-frontend
+    # Frontend is only accessible within Docker network (not exposed to host)
+    # Nginx will proxy requests to this service
+    networks:
+      - resumecontrol-network
+    # Health check to ensure frontend is ready
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    # Restart policy
+    restart: unless-stopped
+
+  # Nginx reverse proxy - Single entry point for the application
+  nginx:
+    image: nginx:alpine
+    container_name: resumecontrol-nginx
+    ports:
+      # Expose port 80 to host (map to 80:80)
+      # For production, you might want to use 8080:80 to avoid conflicts
+      - "80:80"
+    volumes:
+      # Mount nginx configuration
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - resumecontrol-network
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # Restart policy
+    restart: unless-stopped
+
+# Docker network for service communication
+networks:
+  resumecontrol-network:
+    driver: bridge

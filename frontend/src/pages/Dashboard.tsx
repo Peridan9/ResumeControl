@@ -54,7 +54,7 @@ export default function Dashboard() {
   const loading = companiesLoading || jobsLoading || applicationsLoading
   const error = companiesError || applicationsError
     ? (companiesError || applicationsError) instanceof Error
-      ? (companiesError || applicationsError).message
+      ? ((companiesError || applicationsError) as Error).message
       : 'Failed to fetch dashboard data'
     : null
 

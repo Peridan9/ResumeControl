@@ -66,7 +66,7 @@ export function useCompanies() {
         return { previousCompanies, tempId }
       }
     },
-    onError: (err, data, context) => {
+    onError: (_err, _data, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousCompanies) {
         queryClient.setQueryData(['companies'], context.previousCompanies)
@@ -104,7 +104,7 @@ export function useCompanies() {
       // Return a context object with the snapshotted value
       return { previousCompanies }
     },
-    onError: (err, id, context) => {
+    onError: (_err, _id, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousCompanies) {
         queryClient.setQueryData(['companies'], context.previousCompanies)

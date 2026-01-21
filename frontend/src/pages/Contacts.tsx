@@ -88,7 +88,7 @@ export default function Contacts() {
         return { previousContacts, tempId }
       }
     },
-    onError: (err, data, context) => {
+    onError: (err, _data, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousContacts) {
         queryClient.setQueryData(['contacts'], context.previousContacts)
@@ -130,7 +130,7 @@ export default function Contacts() {
       // Return a context object with the snapshotted value
       return { previousContacts }
     },
-    onError: (err, id, context) => {
+    onError: (err, _id, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousContacts) {
         queryClient.setQueryData(['contacts'], context.previousContacts)
