@@ -7,7 +7,7 @@ services:
     container_name: resumecontrol-backend
     environment:
       # Database connection (REQUIRED - must be set in .env file or environment)
-      - NEON_DB_URL=${NEON_DB_URL}
+      - NEON_DB_URL_DIRECT=${NEON_DB_URL_DIRECT}
       # Server port (default: 8080)
       - PORT=8080
       # Environment mode (production/development)
@@ -63,9 +63,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
       frontend:
-        condition: service_healthy
+        condition: service_started
     networks:
       - resumecontrol-network
     # Health check

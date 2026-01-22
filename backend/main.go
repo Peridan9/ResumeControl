@@ -24,9 +24,9 @@ func main() {
 	}
 
 	// Get database URL from environment
-	dbURL := os.Getenv("NEON_DB_URL")
+	dbURL := os.Getenv("NEON_DB_URL_DIRECT")
 	if dbURL == "" {
-		log.Fatal("NEON_DB_URL environment variable is not set")
+		log.Fatal("NEON_DB_URL_DIRECT environment variable is not set")
 	}
 
 	// Connect to database
