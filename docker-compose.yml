@@ -58,9 +58,11 @@ services:
       # Expose port 80 to host (map to 80:80)
       # For production, you might want to use 8080:80 to avoid conflicts
       - "80:80"
+      - "443:443"
     volumes:
       # Mount nginx configuration
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       backend:
         condition: service_started
