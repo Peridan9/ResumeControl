@@ -3,6 +3,7 @@ import Button from '../ui/Button'
 import ErrorMessage from '../ui/ErrorMessage'
 import { STATUS_OPTIONS } from '../../constants/status'
 import { useApplicationForm } from '../../hooks/useApplicationForm'
+import { useJobPostingUrlFetch } from '../../hooks/useJobPostingUrlFetch'
 
 interface ApplicationFormProps {
   application?: Application | null
@@ -44,6 +45,10 @@ export default function ApplicationForm({
     onSubmit,
   })
 
+  // Job posting URL fetch (Create mode only) — PER-78
+  const isCreateMode = !application
+  const urlFetch = useJobPostingUrlFetch()
+
   const handleCancel = () => {
     // Keep draft in sessionStorage when canceling (user might reopen)
     onCancel()
@@ -54,6 +59,57 @@ export default function ApplicationForm({
       {error && (
         <div role="alert" aria-live="polite">
           <ErrorMessage message={error} variant="compact" />
+        </div>
+      )}
+
+      {/* Job posting URL (Create only) — PER-78 */}
+      {isCreateMode && (
+        <div className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 p-4">
+          <label htmlFor="jobPostingUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Job posting URL <span className="text-gray-500 text-xs">(optional)</span>
+          </label>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            We&apos;ll try to load the page from your browser; some sites block this.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              id="jobPostingUrl"
+              name="jobPostingUrl"
+              value={urlFetch.url}
+              onChange={(e) => urlFetch.setUrl(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              placeholder="Paste job posting URL to fetch content"
+              disabled={isLoading}
+              aria-label="Job posting URL (optional)"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => urlFetch.fetchHtml()}
+              disabled={isLoading || urlFetch.fetchStatus === 'loading' || !urlFetch.url.trim()}
+            >
+              {urlFetch.fetchStatus === 'loading' ? 'Loading…' : 'Fetch HTML'}
+            </Button>
+          </div>
+          {urlFetch.fetchStatus === 'loading' && (
+            <p className="text-sm text-gray-600 dark:text-gray-400">Loading…</p>
+          )}
+          {urlFetch.fetchStatus === 'success' && urlFetch.fetchedMeta && (
+            <div className="text-sm text-gray-700 dark:text-gray-300 mt-2 p-3 rounded border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+              <p className="font-medium text-green-800 dark:text-green-200">
+                Fetched {urlFetch.fetchedMeta.byteCount.toLocaleString()} bytes.
+              </p>
+              <p className="mt-1 text-gray-600 dark:text-gray-400 line-clamp-3">
+                Preview: {urlFetch.fetchedMeta.textSnippet || '(no text content)'}
+              </p>
+            </div>
+          )}
+          {urlFetch.fetchStatus === 'error' && urlFetch.fetchError && (
+            <div className="mt-2">
+              <ErrorMessage message={urlFetch.fetchError} variant="compact" />
+            </div>
+          )}
         </div>
       )}
 
