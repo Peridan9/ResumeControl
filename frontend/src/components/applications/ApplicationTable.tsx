@@ -28,6 +28,8 @@ interface ApplicationTableProps {
   loading?: boolean
   statusFilter?: string
   onStatusFilterChange?: (status: string) => void
+  /** When provided, row click calls this instead of navigating to detail page (e.g. to open a drawer) */
+  onRowClick?: (application: Application) => void
   onEdit?: (application: Application) => void
   onDelete?: (id: number) => void
   isDeleting?: boolean
@@ -44,6 +46,7 @@ export default function ApplicationTable({
   loading = false,
   statusFilter = '',
   onStatusFilterChange,
+  onRowClick: onRowClickProp,
   onEdit,
   onDelete,
   isDeleting = false,
@@ -89,7 +92,11 @@ export default function ApplicationTable({
   }
 
   const handleRowClick = (application: Application) => {
-    navigate(`/applications/${application.id}`)
+    if (onRowClickProp) {
+      onRowClickProp(application)
+    } else {
+      navigate(`/applications/${application.id}`)
+    }
   }
 
 

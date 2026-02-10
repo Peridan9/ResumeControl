@@ -17,13 +17,19 @@ export interface UpdateApplicationFormData {
   notes?: string
 }
 
+export interface UseApplicationDetailOptions {
+  /** When provided, called after successful delete instead of navigating to /applications (e.g. to close a drawer) */
+  onDeleteSuccess?: () => void
+}
+
 /**
  * Custom hook for managing application detail data and mutations
  * Extracts all data fetching and mutation logic from ApplicationDetail component
  */
-export function useApplicationDetail(applicationId: number | null) {
+export function useApplicationDetail(applicationId: number | null, options?: UseApplicationDetailOptions) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const onDeleteSuccess = options?.onDeleteSuccess
 
   // Fetch application detail
   const {
@@ -300,9 +306,11 @@ export function useApplicationDetail(applicationId: number | null) {
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['applications'] })
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
-      
-      // Navigate back to applications list
-      navigate('/applications')
+      if (onDeleteSuccess) {
+        onDeleteSuccess()
+      } else {
+        navigate('/applications')
+      }
     },
   })
 

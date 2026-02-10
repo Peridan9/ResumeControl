@@ -1,18 +1,18 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useApplications } from '../hooks/useApplications'
 import { useToast } from '../hooks/useToast'
 import ApplicationTable, { STATUS_OPTIONS } from '../components/applications/ApplicationTable'
 import ApplicationForm from '../components/applications/ApplicationForm'
+import ApplicationDetailDrawer from '../components/applications/ApplicationDetailDrawer'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import ErrorMessage from '../components/ui/ErrorMessage'
 
 export default function Applications() {
-  const navigate = useNavigate()
   const toast = useToast()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedApplicationId, setSelectedApplicationId] = useState<number | null>(null)
 
   // Clear draft on page load/refresh (sessionStorage persists across refreshes)
   // This ensures a fresh start on page refresh, but keeps draft if form is closed/reopened without refresh
@@ -77,9 +77,9 @@ export default function Applications() {
     })
   }
 
-  // Handler for editing application (navigate to detail page)
+  // Handler for editing application (open in drawer)
   const handleEdit = (application: { id: number }) => {
-    navigate(`/applications/${application.id}`)
+    setSelectedApplicationId(application.id)
   }
 
   const handleDelete = async (id: number) => {
@@ -117,6 +117,7 @@ export default function Applications() {
         loading={loading}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
+        onRowClick={(app) => setSelectedApplicationId(app.id)}
         onEdit={handleEdit}
         onDelete={handleDelete}
         isDeleting={isDeleting}
@@ -125,6 +126,11 @@ export default function Applications() {
             ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
             : 'No applications found. Create your first application to get started.'
         }
+      />
+
+      <ApplicationDetailDrawer
+        applicationId={selectedApplicationId}
+        onClose={() => setSelectedApplicationId(null)}
       />
 
       {/* Create Application Modal */}

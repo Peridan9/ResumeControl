@@ -4,6 +4,8 @@ interface ApplicationDetailHeaderProps {
   onEdit: () => void
   onDelete: () => void
   onBack: () => void
+  /** Optional label for the back/close button (e.g. "Close" for drawer) */
+  backLabel?: string
 }
 
 /**
@@ -14,12 +16,13 @@ export default function ApplicationDetailHeader({
   onEdit,
   onDelete,
   onBack,
+  backLabel = '← Back to Applications',
 }: ApplicationDetailHeaderProps) {
   return (
     <>
-      {/* Back Button */}
+      {/* Back / Close Button */}
       <Button variant="secondary" onClick={onBack} className="mb-6">
-        ← Back to Applications
+        {backLabel}
       </Button>
 
       {/* Header */}
