@@ -105,14 +105,15 @@ export default function Landing() {
         {/* Overlaid Text Content */}
         <div className="relative z-10 h-full flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-lg" style={{ fontFamily: "'Pacifico', cursive" }}>
-              Organize Your Job Search
-            </h2>
-            <p className="text-xl md:text-2xl text-white/90 mb-8 drop-shadow-md max-w-2xl mx-auto">
-              Track job applications, manage company information, and store contact details all in one place.
-              Keep your job search organized and never miss an opportunity.
+            <div className="bg-black/15 dark:bg-black/25 backdrop-blur-[2px] rounded-2xl px-6 py-8 md:px-10 md:py-10 shadow-lg">
+              <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]" style={{ fontFamily: "'Pacifico', cursive" }}>
+                Organize Your Job Search
+              </h2>
+              <p className="text-base md:text-lg text-white/90 mb-8 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] max-w-2xl mx-auto space-y-3">
+              <span className="block">Job searching gets overwhelming with multiple applications, resume versions, and notes scattered across platforms. This platform brings everything into one workspace so you can manage resume versions and track every application in a simple, organized way.</span>
+              <span className="block">The goal is visibility and control. A detailed dashboard turns your activity into clear numbers and progress insights, so you can see where you stand, spot patterns, and make smarter decisions toward your next opportunity.</span>
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/register">
                 <Button className="text-lg px-8 py-3 bg-white text-gray-900 hover:bg-gray-100 border-white">
                   Get Started Free
@@ -123,6 +124,7 @@ export default function Landing() {
                   Sign In
                 </Button>
               </Link>
+              </div>
             </div>
           </div>
         </div>
