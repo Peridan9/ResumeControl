@@ -105,7 +105,7 @@ export default function Landing() {
         {/* Overlaid Text Content */}
         <div className="relative z-10 h-full flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-lg">
+            <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-lg" style={{ fontFamily: "'Pacifico', cursive" }}>
               Organize Your Job Search
             </h2>
             <p className="text-xl md:text-2xl text-white/90 mb-8 drop-shadow-md max-w-2xl mx-auto">

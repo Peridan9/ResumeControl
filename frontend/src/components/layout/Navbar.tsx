@@ -19,8 +19,8 @@ export default function Navbar() {
       <nav className="bg-white dark:bg-gray-800 shadow-sm relative z-10" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
-            <Link to="/" className="text-2xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
-              ApplyTrack
+            <Link to="/" className="text-3xl font-semibold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded antialiased" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              Resume Control
             </Link>
             <div className="flex items-center gap-4">
               <Link to="/login" aria-label="Sign in to your account">
@@ -60,10 +60,11 @@ export default function Navbar() {
           <div className="flex items-center">
             <Link
               to="/dashboard"
-              className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-              aria-label="ApplyTrack home"
+              className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded antialiased"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+              aria-label="Resume Control home"
             >
-              ApplyTrack
+              Resume Control
             </Link>
           </div>
           <div className="flex items-center space-x-4">
