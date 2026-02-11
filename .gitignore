@@ -32,5 +32,10 @@ problems.md
 scripts/
 scripts/push_local_db_to_neon.sh
 
+<<<<<<< HEAD
 #docs
 docs/
+=======
+# certs
+nginx/certs/
+>>>>>>> bd0032124539e63114fbe75ce3b5e85319df2468
