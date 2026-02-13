@@ -29,8 +29,11 @@ export default function Register() {
     return null
   }
 
+  const registrationDisabled = true // Temporary: set to false to re-enable registration
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (registrationDisabled) return
     setError(null)
 
     // Validate password
@@ -78,6 +81,16 @@ export default function Register() {
             </Link>
           </p>
         </div>
+        {registrationDisabled && (
+          <div
+            className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 text-center"
+            role="status"
+          >
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Registration is currently unavailable and will be opened soon.
+            </p>
+          </div>
+        )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
           {error && (
             <div role="alert" aria-live="polite" id="register-error">
@@ -96,9 +109,10 @@ export default function Register() {
                 autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 placeholder="Your name"
                 aria-label="Name (optional)"
+                disabled={registrationDisabled}
               />
             </div>
             <div>
@@ -113,8 +127,9 @@ export default function Register() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 placeholder="Email address"
+                disabled={registrationDisabled}
                 aria-required="true"
                 aria-invalid={error ? 'true' : 'false'}
                 aria-describedby={error ? 'register-error' : undefined}
@@ -132,8 +147,9 @@ export default function Register() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 placeholder="Password (min 8 characters)"
+                disabled={registrationDisabled}
                 aria-required="true"
                 aria-invalid={error ? 'true' : 'false'}
                 aria-describedby={error ? 'register-error password-help' : 'password-help'}
@@ -147,7 +163,7 @@ export default function Register() {
           <div>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || registrationDisabled}
               className="w-full"
             >
               {loading ? 'Creating account...' : 'Create account'}
