@@ -1,6 +1,6 @@
 # Multi-stage build for Go backend
 # Stage 1: Build the application
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies (git for go modules, ca-certificates for HTTPS)
 RUN apk add --no-cache git ca-certificates
