@@ -15,6 +15,18 @@ LIMIT 1;
 SELECT * FROM users
 WHERE id = $1;
 
+-- name: GetUserByClerkID :one
+-- Get a user by Clerk user id (for JWT sub resolution)
+SELECT * FROM users
+WHERE clerk_user_id = $1
+LIMIT 1;
+
+-- name: CreateUserWithClerkID :one
+-- Create a user linked to Clerk (password_hash empty for Clerk-only users)
+INSERT INTO users (clerk_user_id, email, password_hash, name)
+VALUES ($1, $2, $3, $4)
+RETURNING *;
+
 -- name: UpdateUser :one
 -- Update user information
 UPDATE users

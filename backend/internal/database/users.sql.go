@@ -13,7 +13,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, name)
 VALUES ($1, $2, $3)
-RETURNING id, email, password_hash, name, created_at, updated_at, last_login
+RETURNING id, email, password_hash, name, created_at, updated_at, last_login, clerk_user_id
 `
 
 type CreateUserParams struct {
@@ -34,6 +34,42 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLogin,
+		&i.ClerkUserID,
+	)
+	return i, err
+}
+
+const createUserWithClerkID = `-- name: CreateUserWithClerkID :one
+INSERT INTO users (clerk_user_id, email, password_hash, name)
+VALUES ($1, $2, $3, $4)
+RETURNING id, email, password_hash, name, created_at, updated_at, last_login, clerk_user_id
+`
+
+type CreateUserWithClerkIDParams struct {
+	ClerkUserID  sql.NullString `json:"clerk_user_id"`
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Name         sql.NullString `json:"name"`
+}
+
+// Create a user linked to Clerk (password_hash empty for Clerk-only users)
+func (q *Queries) CreateUserWithClerkID(ctx context.Context, arg CreateUserWithClerkIDParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUserWithClerkID,
+		arg.ClerkUserID,
+		arg.Email,
+		arg.PasswordHash,
+		arg.Name,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastLogin,
+		&i.ClerkUserID,
 	)
 	return i, err
 }
@@ -49,8 +85,31 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	return err
 }
 
+const getUserByClerkID = `-- name: GetUserByClerkID :one
+SELECT id, email, password_hash, name, created_at, updated_at, last_login, clerk_user_id FROM users
+WHERE clerk_user_id = $1
+LIMIT 1
+`
+
+// Get a user by Clerk user id (for JWT sub resolution)
+func (q *Queries) GetUserByClerkID(ctx context.Context, clerkUserID sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByClerkID, clerkUserID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastLogin,
+		&i.ClerkUserID,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, name, created_at, updated_at, last_login FROM users
+SELECT id, email, password_hash, name, created_at, updated_at, last_login, clerk_user_id FROM users
 WHERE LOWER(email) = LOWER($1)
 LIMIT 1
 `
@@ -67,12 +126,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLogin,
+		&i.ClerkUserID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, name, created_at, updated_at, last_login FROM users
+SELECT id, email, password_hash, name, created_at, updated_at, last_login, clerk_user_id FROM users
 WHERE id = $1
 `
 
@@ -88,6 +148,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLogin,
+		&i.ClerkUserID,
 	)
 	return i, err
 }
@@ -97,7 +158,7 @@ UPDATE users
 SET name = $2,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, email, password_hash, name, created_at, updated_at, last_login
+RETURNING id, email, password_hash, name, created_at, updated_at, last_login, clerk_user_id
 `
 
 type UpdateUserParams struct {
@@ -117,6 +178,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLogin,
+		&i.ClerkUserID,
 	)
 	return i, err
 }
