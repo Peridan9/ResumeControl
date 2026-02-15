@@ -1,15 +1,11 @@
 package handlers
 
 import (
-	"context"
 	"database/sql"
 	"net/http"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
 )
 
@@ -66,11 +62,6 @@ func (h *UserHandler) Login(c *gin.Context) {
 	})
 }
 
-// RefreshRequest represents the JSON body for token refresh
-type RefreshRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
 // Refresh handles POST /api/auth/refresh
 // Deprecated: sessions are now managed by Clerk. Returns 410 Gone.
 func (h *UserHandler) Refresh(c *gin.Context) {
@@ -81,46 +72,10 @@ func (h *UserHandler) Refresh(c *gin.Context) {
 	return
 }
 
-// LogoutRequest represents the JSON body for logout
-type LogoutRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
 // Logout handles POST /api/auth/logout
-// Revokes a refresh token
+// No-op for Clerk; session is ended on the frontend via signOut().
 func (h *UserHandler) Logout(c *gin.Context) {
-	// Parse JSON body
-	var req LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	ctx := c.Request.Context()
-
-	// Hash the refresh token to look it up in database
-	tokenHash := auth.HashRefreshToken(req.RefreshToken)
-
-	// Get refresh token from database
-	refreshToken, err := h.queries.GetRefreshTokenByHash(ctx, tokenHash)
-	if err != nil {
-		// Token not found - still return success for security (don't reveal if token exists)
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Logged out successfully",
-		})
-		return
-	}
-
-	// Revoke the token
-	err = h.queries.RevokeRefreshToken(ctx, refreshToken.ID)
-	if err != nil {
-		sendInternalError(c, "Failed to revoke token", err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logged out successfully",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
 // Me handles GET /api/auth/me
@@ -145,7 +100,7 @@ func (h *UserHandler) Me(c *gin.Context) {
 		return
 	}
 
-	// Return user info (without password_hash)
+	// Return user info
 	var userResponse struct {
 		ID    int32  `json:"id"`
 		Email string `json:"email"`
@@ -221,71 +176,4 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 	c.JSON(http.StatusOK, userResponse)
 }
 
-// Helper functions
-
-// generateTokens generates both access and refresh tokens and stores refresh token in database
-func (h *UserHandler) generateTokens(userID int32) (accessToken string, refreshToken string, err error) {
-	// Generate access token
-	accessTokenExpiration := h.getAccessTokenExpiration()
-	accessToken, err = auth.GenerateAccessToken(userID, accessTokenExpiration)
-	if err != nil {
-		return "", "", err
-	}
-
-	// Generate refresh token
-	refreshToken, err = auth.GenerateRefreshToken()
-	if err != nil {
-		return "", "", err
-	}
-
-	// Hash refresh token for storage
-	tokenHash := auth.HashRefreshToken(refreshToken)
-
-	// Calculate expiration (7 days)
-	refreshTokenExpiration := h.getRefreshTokenExpiration()
-	expiresAt := time.Now().Add(refreshTokenExpiration)
-
-	// Store refresh token in database
-	ctx := context.Background()
-	_, err = h.queries.CreateRefreshToken(ctx, database.CreateRefreshTokenParams{
-		UserID:    userID,
-		TokenHash: tokenHash,
-		ExpiresAt: expiresAt,
-	})
-	if err != nil {
-		return "", "", err
-	}
-
-	return accessToken, refreshToken, nil
-}
-
-// getAccessTokenExpiration returns the access token expiration duration
-func (h *UserHandler) getAccessTokenExpiration() time.Duration {
-	expirationStr := os.Getenv("JWT_ACCESS_TOKEN_EXPIRATION")
-	if expirationStr == "" {
-		expirationStr = "15m" // Default: 15 minutes
-	}
-
-	duration, err := time.ParseDuration(expirationStr)
-	if err != nil {
-		return 15 * time.Minute // Default fallback
-	}
-
-	return duration
-}
-
-// getRefreshTokenExpiration returns the refresh token expiration duration
-func (h *UserHandler) getRefreshTokenExpiration() time.Duration {
-	expirationStr := os.Getenv("JWT_REFRESH_TOKEN_EXPIRATION")
-	if expirationStr == "" {
-		expirationStr = "168h" // Default: 7 days
-	}
-
-	duration, err := time.ParseDuration(expirationStr)
-	if err != nil {
-		return 168 * time.Hour // Default fallback: 7 days
-	}
-
-	return duration
-}
 

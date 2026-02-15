@@ -9,12 +9,14 @@ import (
 
 // Config holds shared dependencies for all handlers
 type Config struct {
-	DB        *database.Queries
-	ClerkJWKS *jwks.Client
+	DB            *database.Queries
+	ClerkJWKS     *jwks.Client
+	UseLegacyAuth bool // if true, use LegacyAuthMiddleware (tests only)
 }
 
 // SetupRoutes registers all API routes with the Gin router
 func (cfg *Config) SetupRoutes(r *gin.Engine) {
+	authMiddleware := cfg.authMiddleware()
 	// Initialize handlers
 	companyHandler := NewCompanyHandler(cfg.DB)
 	jobHandler := NewJobHandler(cfg.DB)
@@ -36,18 +38,18 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 			authPublic.POST("/refresh", userHandler.Refresh)
 		}
 
-		// Auth routes (protected - require Clerk authentication)
+		// Auth routes (protected)
 		authProtected := api.Group("/auth")
-		authProtected.Use(middleware.ClerkAuthMiddleware(cfg.DB, cfg.ClerkJWKS))
+		authProtected.Use(authMiddleware)
 		{
 			authProtected.POST("/logout", userHandler.Logout)
 			authProtected.GET("/me", userHandler.Me)
 			authProtected.PUT("/me", userHandler.UpdateMe)
 		}
 
-		// Protected routes (require Clerk authentication)
+		// Protected routes
 		protected := api.Group("")
-		protected.Use(middleware.ClerkAuthMiddleware(cfg.DB, cfg.ClerkJWKS))
+		protected.Use(authMiddleware)
 		{
 				// Company routes
 			protected.GET("/companies", companyHandler.GetAllCompanies)
@@ -85,5 +87,12 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 			protected.DELETE("/contacts/:id", contactHandler.DeleteContact)
 		}
 	}
+}
+
+func (cfg *Config) authMiddleware() gin.HandlerFunc {
+	if cfg.UseLegacyAuth {
+		return middleware.LegacyAuthMiddleware()
+	}
+	return middleware.ClerkAuthMiddleware(cfg.DB, cfg.ClerkJWKS)
 }
 

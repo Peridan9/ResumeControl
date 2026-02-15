@@ -62,12 +62,11 @@ type RefreshToken struct {
 }
 
 type User struct {
-	ID           int32          `json:"id"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	Name         sql.NullString `json:"name"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
-	LastLogin    sql.NullTime   `json:"last_login"`
-	ClerkUserID  sql.NullString `json:"clerk_user_id"`
+	ID          int32          `json:"id"`
+	Email       string         `json:"email"`
+	Name        sql.NullString `json:"name"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+	LastLogin   sql.NullTime   `json:"last_login"`
+	ClerkUserID sql.NullString `json:"clerk_user_id"`
 }

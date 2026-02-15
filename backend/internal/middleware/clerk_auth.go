@@ -87,10 +87,9 @@ func ClerkAuthMiddleware(queries *database.Queries, jwksClient *jwks.Client) gin
 		name := getNameFromClerkUser(clerkUser)
 
 		newUser, err := queries.CreateUserWithClerkID(ctx, database.CreateUserWithClerkIDParams{
-			ClerkUserID:  sql.NullString{String: clerkSub, Valid: true},
-			Email:        email,
-			PasswordHash: "", // Clerk-only user
-			Name:         name,
+			ClerkUserID: sql.NullString{String: clerkSub, Valid: true},
+			Email:       email,
+			Name:        name,
 		})
 		if err != nil {
 			// Race: another request may have created the user

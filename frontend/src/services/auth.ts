@@ -1,8 +1,6 @@
-// Authentication service for user registration, login, and token management
+// Auth service: Clerk token getter for API and backend user/update calls
 
 import { fetchAPI } from './fetch'
-
-const API_BASE_URL = '/api'
 
 // User type matching backend response
 export interface User {
@@ -11,49 +9,9 @@ export interface User {
   name: string
 }
 
-// Auth response types
-export interface RegisterResponse {
-  user: User
-  access_token: string
-  refresh_token: string
-  message: string
-}
-
-export interface LoginResponse {
-  user: User
-  access_token: string
-  refresh_token: string
-  message: string
-}
-
-export interface RefreshResponse {
-  access_token: string
-  message: string
-}
-
-// Request types
-export interface RegisterRequest {
-  email: string
-  password: string
-  name?: string
-}
-
-export interface LoginRequest {
-  email: string
-  password: string
-}
-
-export interface LogoutRequest {
-  refresh_token: string
-}
-
 export interface UpdateUserRequest {
   name: string
 }
-
-// Token storage keys (legacy; Clerk does not use these for API auth)
-const ACCESS_TOKEN_KEY = 'access_token'
-const REFRESH_TOKEN_KEY = 'refresh_token'
 
 /** Set by AuthContext when Clerk is loaded. Used by fetchAPI to attach Bearer token. */
 let clerkTokenGetter: (() => Promise<string | null>) | null = null
@@ -64,130 +22,11 @@ export function getClerkToken(): Promise<string | null> {
   return clerkTokenGetter ? clerkTokenGetter() : Promise.resolve(null)
 }
 
-// Token management functions (kept for any legacy usage; API auth uses Clerk token)
-export const tokenStorage = {
-  getAccessToken: (): string | null => {
-    return localStorage.getItem(ACCESS_TOKEN_KEY)
-  },
-  getRefreshToken: (): string | null => {
-    return localStorage.getItem(REFRESH_TOKEN_KEY)
-  },
-  setTokens: (accessToken: string, refreshToken: string): void => {
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
-  },
-  clearTokens: (): void => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-  },
-}
-
-// Auth API functions
 export const authAPI = {
-  /**
-   * Register a new user account
-   */
-  register: async (data: RegisterRequest): Promise<RegisterResponse> => {
-    const response = await fetchAPI<RegisterResponse>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      addAuthHeader: false,
-      retryOn401: false,
-    })
-    
-    // Store tokens on successful registration
-    if (response.access_token && response.refresh_token) {
-      tokenStorage.setTokens(response.access_token, response.refresh_token)
-    }
-    
-    return response
-  },
-
-  /**
-   * Login with email and password
-   */
-  login: async (data: LoginRequest): Promise<LoginResponse> => {
-    const response = await fetchAPI<LoginResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      addAuthHeader: false,
-      retryOn401: false,
-    })
-    
-    // Store tokens on successful login
-    if (response.access_token && response.refresh_token) {
-      tokenStorage.setTokens(response.access_token, response.refresh_token)
-    }
-    
-    return response
-  },
-
-  /**
-   * Refresh access token using refresh token
-   * Note: Uses direct fetch to avoid circular dependency with fetchAPI
-   */
-  refreshToken: async (refreshToken: string): Promise<RefreshResponse> => {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({
-        error: 'An error occurred',
-        details: response.statusText,
-      }))
-      throw new Error(error.error || error.details || 'Request failed')
-    }
-
-    const data = await response.json()
-    
-    // Update access token in storage
-    if (data.access_token) {
-      const storedRefreshToken = tokenStorage.getRefreshToken()
-      if (storedRefreshToken) {
-        tokenStorage.setTokens(data.access_token, storedRefreshToken)
-      }
-    }
-    
-    return data
-  },
-
-  /**
-   * Logout and revoke refresh token
-   */
-  logout: async (refreshToken: string): Promise<void> => {
-    try {
-      await fetchAPI<void>('/auth/logout', {
-        method: 'POST',
-        body: JSON.stringify({ refresh_token: refreshToken }),
-        addAuthHeader: false,
-        retryOn401: false,
-      })
-    } catch (error) {
-      // Even if logout fails, clear tokens locally
-      console.error('Logout error:', error)
-    } finally {
-      // Always clear tokens from storage
-      tokenStorage.clearTokens()
-    }
-  },
-
-  /**
-   * Get current authenticated user information
-   */
   getCurrentUser: async (): Promise<User> => {
-    return fetchAPI<User>('/auth/me', {
-      method: 'GET',
-    })
+    return fetchAPI<User>('/auth/me', { method: 'GET' })
   },
 
-  /**
-   * Update current user information
-   */
   updateUser: async (data: UpdateUserRequest): Promise<User> => {
     return fetchAPI<User>('/auth/me', {
       method: 'PUT',
@@ -195,4 +34,3 @@ export const authAPI = {
     })
   },
 }
-

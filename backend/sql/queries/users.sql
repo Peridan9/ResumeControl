@@ -1,7 +1,7 @@
 -- name: CreateUser :one
--- Create a new user and return the created record
-INSERT INTO users (email, password_hash, name)
-VALUES ($1, $2, $3)
+-- Create a new user (no password; auth via Clerk or tests use legacy JWT).
+INSERT INTO users (email, name)
+VALUES ($1, $2)
 RETURNING *;
 
 -- name: GetUserByEmail :one
@@ -22,9 +22,9 @@ WHERE clerk_user_id = $1
 LIMIT 1;
 
 -- name: CreateUserWithClerkID :one
--- Create a user linked to Clerk (password_hash empty for Clerk-only users)
-INSERT INTO users (clerk_user_id, email, password_hash, name)
-VALUES ($1, $2, $3, $4)
+-- Create a user linked to Clerk (auth handled by Clerk).
+INSERT INTO users (clerk_user_id, email, name)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: UpdateUser :one

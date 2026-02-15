@@ -78,9 +78,8 @@ func TestSqlcQueries(t *testing.T) {
 	// Use a unique email for each test run to avoid conflicts
 	uniqueEmail := fmt.Sprintf("test-db-queries-%d@example.com", time.Now().UnixNano())
 	testUser, err := queries.CreateUser(ctx, database.CreateUserParams{
-		Email:        uniqueEmail,
-		PasswordHash: "test-hash",
-		Name:         sql.NullString{String: "Test User", Valid: true},
+		Email: uniqueEmail,
+		Name:  sql.NullString{String: "Test User", Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)

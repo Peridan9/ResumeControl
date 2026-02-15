@@ -11,16 +11,14 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
-	"golang.org/x/crypto/bcrypt"
 	_ "github.com/lib/pq"
 )
 
-// TestUser represents a test user created for testing
+// TestUser represents a test user created for testing (legacy JWT auth in tests).
 type TestUser struct {
-	ID       int32
-	Email    string
-	Password string
-	Token    string // Access token for authenticated requests
+	ID    int32
+	Email string
+	Token string // Access token for authenticated requests
 }
 
 // setupTestRouter creates a Gin router with all handlers for testing
@@ -65,10 +63,11 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *database.Queries, *sql.DB) {
 	// Set Gin to test mode
 	gin.SetMode(gin.TestMode)
 
-	// Create router and setup routes
+	// Create router and setup routes (use legacy JWT auth for tests)
 	r := gin.New()
 	cfg := Config{
-		DB: queries,
+		DB:            queries,
+		UseLegacyAuth: true,
 	}
 	cfg.SetupRoutes(r)
 
@@ -82,39 +81,29 @@ func createTestUser(t *testing.T, queries *database.Queries, db *sql.DB, email s
 	ctx := context.Background()
 
 	var userID int32
-	var password string
 
 	// Check if user already exists
 	existingUser, err := queries.GetUserByEmail(ctx, email)
 	if err == nil {
 		// User exists, generate token for it
 		userID = existingUser.ID
-		password = "test-password-123" // We don't know the actual password
 		token, err := auth.GenerateAccessToken(existingUser.ID, 15*time.Minute)
 		if err != nil {
 			t.Fatalf("Failed to generate token for existing user: %v", err)
 		}
 		return &TestUser{
-			ID:       existingUser.ID,
-			Email:    existingUser.Email,
-			Password: password,
-			Token:    token,
+			ID:    existingUser.ID,
+			Email: existingUser.Email,
+			Token: token,
 		}, func() {
 			cleanupTestUser(t, db, userID)
 		}
 	}
 
-	// Create new user
-	password = "test-password-123"
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		t.Fatalf("Failed to hash password: %v", err)
-	}
-
+	// Create new user (no password; tests use legacy JWT)
 	user, err := queries.CreateUser(ctx, database.CreateUserParams{
-		Email:        email,
-		PasswordHash: string(hashedPassword),
-		Name:         sql.NullString{String: "Test User", Valid: true},
+		Email: email,
+		Name:  sql.NullString{String: "Test User", Valid: true},
 	})
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
@@ -129,10 +118,9 @@ func createTestUser(t *testing.T, queries *database.Queries, db *sql.DB, email s
 	}
 
 	return &TestUser{
-		ID:       user.ID,
-		Email:    user.Email,
-		Password: password,
-		Token:    token,
+		ID:    user.ID,
+		Email: user.Email,
+		Token: token,
 	}, func() {
 		cleanupTestUser(t, db, userID)
 	}
