@@ -2,6 +2,10 @@
 # Stage 1: Build the application
 FROM node:20-alpine AS builder
 
+# Build-time env for Clerk (Vite bakes VITE_* into the bundle)
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 # Set working directory
 WORKDIR /app
 
