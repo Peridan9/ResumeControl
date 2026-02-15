@@ -17,9 +17,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <LoadingState fullScreen message="Loading..." />
   }
 
-  // Redirect to login if not authenticated, preserving intended destination
+  // Redirect to sign-in if not authenticated, preserving intended destination
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to="/sign-in" state={{ from: location }} replace />
   }
 
   // Render children if authenticated

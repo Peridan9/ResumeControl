@@ -7,10 +7,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/clerk/clerk-sdk-go/v2"
+	"github.com/clerk/clerk-sdk-go/v2/jwks"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
 	"github.com/peridan9/resumecontrol/backend/internal/handlers"
 	_ "github.com/lib/pq" // PostgreSQL driver (imported for side effects)
@@ -59,11 +60,14 @@ func main() {
 	}
 	log.Println("✅ Successfully connected to database!")
 
-	// Initialize JWT authentication
-	if err := auth.InitJWT(); err != nil {
-		log.Fatalf("❌ Failed to initialize JWT: %v", err)
+	// Initialize Clerk (for JWT verification and user resolution)
+	clerkSecret := os.Getenv("CLERK_SECRET_KEY")
+	if clerkSecret == "" {
+		log.Fatal("CLERK_SECRET_KEY environment variable is not set")
 	}
-	log.Println("✅ JWT authentication initialized!")
+	clerk.SetKey(clerkSecret)
+	clerkJWKS := jwks.NewClient(&clerk.ClientConfig{}) // uses key from clerk.SetKey()
+	log.Println("✅ Clerk authentication initialized!")
 
 	// Set Gin mode based on environment
 	if env == "production" {
@@ -143,7 +147,8 @@ func main() {
 
 	// Initialize handlers config and setup routes
 	cfg := handlers.Config{
-		DB: queries,
+		DB:         queries,
+		ClerkJWKS:  clerkJWKS,
 	}
 	cfg.SetupRoutes(r)
 

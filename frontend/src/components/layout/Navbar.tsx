@@ -23,12 +23,12 @@ export default function Navbar() {
               Resume Control
             </Link>
             <div className="flex items-center gap-4">
-              <Link to="/login" aria-label="Sign in to your account">
+              <Link to="/sign-in" aria-label="Sign in to your account">
                 <Button variant="secondary" className="px-6 py-2 text-sm">
                   Sign In
                 </Button>
               </Link>
-              <Link to="/register" aria-label="Create a new account">
+              <Link to="/sign-up" aria-label="Create a new account">
                 <Button className="px-6 py-2 text-sm">Get Started</Button>
               </Link>
               

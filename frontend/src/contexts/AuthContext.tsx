@@ -1,9 +1,9 @@
-// Authentication Context for managing user authentication state
+// Auth context: drives from Clerk and exposes backend user (from GET /auth/me)
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { authAPI, tokenStorage, type User } from '../services/auth'
+import { useAuth as useClerkAuth } from '@clerk/clerk-react'
+import { authAPI, setClerkTokenGetter, type User } from '../services/auth'
 
-// Auth context type
 interface AuthContextType {
   user: User | null
   loading: boolean
@@ -15,131 +15,85 @@ interface AuthContextType {
   updateUser: (name: string) => Promise<void>
 }
 
-// Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// AuthProvider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isLoaded: clerkLoaded, isSignedIn, getToken, signOut } = useClerkAuth()
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loading, setLoading] = useState(true)
 
-  // Check if user is authenticated
   const isAuthenticated = user !== null
 
-  // Initialize auth state on mount
+  // Register Clerk token getter so fetchAPI can attach Bearer token
   useEffect(() => {
-    const initializeAuth = async () => {
+    setClerkTokenGetter(async () => {
       try {
-        // Check if we have tokens
-        const accessToken = tokenStorage.getAccessToken()
-        const refreshToken = tokenStorage.getRefreshToken()
-
-        if (accessToken && refreshToken) {
-          // Try to get current user
-          try {
-            const currentUser = await authAPI.getCurrentUser()
-            setUser(currentUser)
-          } catch (error) {
-            // If getting user fails, try to refresh token
-            try {
-              await authAPI.refreshToken(refreshToken)
-              // Retry getting user after refresh
-              const currentUser = await authAPI.getCurrentUser()
-              setUser(currentUser)
-            } catch (refreshError) {
-              // Refresh failed, clear tokens
-              tokenStorage.clearTokens()
-              setUser(null)
-            }
-          }
-        } else {
-          setUser(null)
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error)
-        tokenStorage.clearTokens()
-        setUser(null)
-      } finally {
-        setLoading(false)
+        return await getToken()
+      } catch {
+        return null
       }
+    })
+  }, [getToken])
+
+  // When Clerk is ready and signed in, fetch our backend user from GET /auth/me
+  useEffect(() => {
+    if (!clerkLoaded) return
+
+    if (!isSignedIn) {
+      setUser(null)
+      setLoading(false)
+      return
     }
 
-    initializeAuth()
-  }, [])
+    let cancelled = false
+    authAPI
+      .getCurrentUser()
+      .then((u) => {
+        if (!cancelled) setUser(u)
+      })
+      .catch(() => {
+        if (!cancelled) setUser(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
 
-  // Login function
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      const response = await authAPI.login({ email, password })
-      setUser(response.user)
-    } catch (error) {
-      // Re-throw error so component can handle it
-      throw error
+    return () => {
+      cancelled = true
     }
+  }, [clerkLoaded, isSignedIn])
+
+  const login = useCallback(async (_email: string, _password: string) => {
+    throw new Error('Use Clerk sign-in at /sign-in')
   }, [])
 
-  // Register function
-  const register = useCallback(async (email: string, password: string, name?: string) => {
-    try {
-      const response = await authAPI.register({ email, password, name })
-      setUser(response.user)
-    } catch (error) {
-      // Re-throw error so component can handle it
-      throw error
-    }
+  const register = useCallback(async (_email: string, _password: string, _name?: string) => {
+    throw new Error('Use Clerk sign-up at /sign-up')
   }, [])
 
-  // Logout function
   const logout = useCallback(async () => {
-    try {
-      const refreshToken = tokenStorage.getRefreshToken()
-      if (refreshToken) {
-        await authAPI.logout(refreshToken)
-      }
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      // Always clear state and tokens
-      tokenStorage.clearTokens()
-      setUser(null)
-    }
-  }, [])
+    await signOut()
+    setUser(null)
+  }, [signOut])
 
-  // Refresh token function
   const refresh = useCallback(async () => {
+    if (!isSignedIn) return
     try {
-      const refreshToken = tokenStorage.getRefreshToken()
-      if (!refreshToken) {
-        throw new Error('No refresh token available')
-      }
-
-      await authAPI.refreshToken(refreshToken)
-      
-      // Get updated user info
-      const currentUser = await authAPI.getCurrentUser()
-      setUser(currentUser)
-    } catch (error) {
-      // Refresh failed, clear tokens and user
-      tokenStorage.clearTokens()
+      const u = await authAPI.getCurrentUser()
+      setUser(u)
+    } catch {
       setUser(null)
-      throw error
     }
-  }, [])
+  }, [isSignedIn])
 
-  // Update user function
   const updateUser = useCallback(async (name: string) => {
-    try {
-      const updatedUser = await authAPI.updateUser({ name })
-      setUser(updatedUser)
-    } catch (error) {
-      // Re-throw error so component can handle it
-      throw error
-    }
+    const updated = await authAPI.updateUser({ name })
+    setUser(updated)
   }, [])
 
   const value: AuthContextType = {
     user,
-    loading,
+    loading: !clerkLoaded || loading,
     isAuthenticated,
     login,
     register,
@@ -151,7 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-// useAuth hook for consuming auth context
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext)
   if (context === undefined) {
@@ -159,4 +112,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context
 }
-

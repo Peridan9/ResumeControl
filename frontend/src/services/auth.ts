@@ -51,12 +51,20 @@ export interface UpdateUserRequest {
   name: string
 }
 
-// Token storage keys
+// Token storage keys (legacy; Clerk does not use these for API auth)
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
 
+/** Set by AuthContext when Clerk is loaded. Used by fetchAPI to attach Bearer token. */
+let clerkTokenGetter: (() => Promise<string | null>) | null = null
+export function setClerkTokenGetter(getter: () => Promise<string | null>) {
+  clerkTokenGetter = getter
+}
+export function getClerkToken(): Promise<string | null> {
+  return clerkTokenGetter ? clerkTokenGetter() : Promise.resolve(null)
+}
 
-// Token management functions
+// Token management functions (kept for any legacy usage; API auth uses Clerk token)
 export const tokenStorage = {
   getAccessToken: (): string | null => {
     return localStorage.getItem(ACCESS_TOKEN_KEY)

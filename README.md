@@ -72,41 +72,28 @@ ENV=development
 # Frontend URL for CORS (optional, defaults to http://localhost:3000)
 FRONTEND_URL=http://localhost:3000
 
-# JWT Authentication (required)
-JWT_SECRET=your-secret-key-minimum-32-characters-long-for-security
-JWT_ACCESS_TOKEN_EXPIRATION=15m
-JWT_REFRESH_TOKEN_EXPIRATION=168h
+# Clerk (required for auth)
+CLERK_SECRET_KEY=sk_test_...
 ```
 
-**Important:** The `JWT_SECRET` must be a strong, random string (minimum 32 characters) for security. Generate one using:
-```bash
-openssl rand -base64 32
+### Frontend
+
+Create a `.env` file in the `frontend/` directory (or set in your shell):
+
+```env
+# Clerk publishable key (required for sign-in/sign-up UI)
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
+
+Get both keys from [Clerk Dashboard](https://dashboard.clerk.com) → your application → API Keys.
 
 ## Authentication
 
-ResumeControl uses JWT-based authentication with access tokens and refresh tokens:
+ResumeControl uses **Clerk** for sign-in and sign-up. The backend verifies Clerk session JWTs and maps to an internal user.
 
-- **Access Tokens**: Short-lived (15 minutes by default), sent with every API request
-- **Refresh Tokens**: Long-lived (7 days by default), used to obtain new access tokens
-- **Token Storage**: Tokens are stored in browser localStorage
-- **Automatic Refresh**: Access tokens are automatically refreshed when expired
-
-### User Registration and Login
-
-1. Navigate to `/register` to create a new account
-2. Navigate to `/login` to sign in with existing credentials
-3. All API endpoints (except `/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`) require authentication
-4. Protected routes automatically redirect to login if not authenticated
-
-### API Authentication
-
-All authenticated API requests must include the access token in the Authorization header:
-```
-Authorization: Bearer <access_token>
-```
-
-The frontend automatically handles token management, refresh, and retry logic.
+- **Sign-in / Sign-up**: Use `/sign-in` and `/sign-up` (Clerk-hosted UI). Legacy `/login` and `/register` redirect to these.
+- **API auth**: The frontend sends the Clerk session token as `Authorization: Bearer <token>`; the backend verifies it and resolves to your app user.
+- **Protected routes**: Unauthenticated users are redirected to `/sign-in`.
 
 ## How to Run
 

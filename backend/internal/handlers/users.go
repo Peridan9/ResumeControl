@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/peridan9/resumecontrol/backend/internal/auth"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // UserHandler handles HTTP requests for user authentication
@@ -44,88 +43,11 @@ type RegisterResponse struct {
 }
 
 // Register handles POST /api/auth/register
-// Creates a new user account with email and password
+// Deprecated: sign-up is now via Clerk. Returns 410 Gone.
 func (h *UserHandler) Register(c *gin.Context) {
-	// Parse JSON body
-	var req RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		sendValidationError(c, err)
-		return
-	}
-
-	// Normalize email (validation already handled by binding tags)
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-
-	// Check if user with this email already exists
-	ctx := c.Request.Context()
-	_, err := h.queries.GetUserByEmail(ctx, req.Email)
-	if err == nil {
-		// User already exists
-		sendError(c, http.StatusConflict, "User with this email already exists")
-		return
-	}
-	// If error is not "no rows", it's a real database error
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		sendInternalError(c, "Failed to check for existing user", err)
-		return
-	}
-
-	// Hash password
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		sendInternalError(c, "Failed to hash password", err)
-		return
-	}
-
-	// Convert name to sql.NullString (name is nullable in database)
-	var name sql.NullString
-	if strings.TrimSpace(req.Name) != "" {
-		name = sql.NullString{
-			String: strings.TrimSpace(req.Name),
-			Valid:  true,
-		}
-	}
-
-	// Create user
-	user, err := h.queries.CreateUser(ctx, database.CreateUserParams{
-		Email:        req.Email,
-		PasswordHash: string(passwordHash),
-		Name:         name,
-	})
-	if err != nil {
-		// Check for duplicate email (race condition)
-		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(strings.ToLower(err.Error()), "unique") {
-			sendError(c, http.StatusConflict, "User with this email already exists")
-			return
-		}
-		sendInternalError(c, "Failed to create user", err)
-		return
-	}
-
-	// Generate tokens
-	accessToken, refreshToken, err := h.generateTokens(user.ID)
-	if err != nil {
-		sendInternalError(c, "Failed to generate tokens", err)
-		return
-	}
-
-	// Return user info with tokens
-	var response RegisterResponse
-	response.User.ID = user.ID
-	response.User.Email = user.Email
-	// Convert sql.NullString back to string for JSON response
-	if user.Name.Valid {
-		response.User.Name = user.Name.String
-	} else {
-		response.User.Name = ""
-	}
-	response.Message = "User registered successfully"
-
-	c.JSON(http.StatusCreated, gin.H{
-		"user":          response.User,
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"message":       response.Message,
+	c.JSON(http.StatusGone, gin.H{
+		"error":   "Use Clerk for sign-up",
+		"message": "This endpoint is no longer available. Please use Clerk for sign-up.",
 	})
 }
 
@@ -136,68 +58,11 @@ type LoginRequest struct {
 }
 
 // Login handles POST /api/auth/login
-// Authenticates a user and returns access and refresh tokens
+// Deprecated: sign-in is now via Clerk. Returns 410 Gone.
 func (h *UserHandler) Login(c *gin.Context) {
-	// Parse JSON body
-	var req LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		sendValidationError(c, err)
-		return
-	}
-
-
-	// Normalize email
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-
-	// Get user by email
-	ctx := c.Request.Context()
-	user, err := h.queries.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		// User not found or database error
-		if err.Error() == "sql: no rows in result set" {
-			sendError(c, http.StatusUnauthorized, "Invalid email or password")
-			return
-		}
-		sendInternalError(c, "Failed to fetch user", err)
-		return
-	}
-
-	// Verify password
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
-	if err != nil {
-		sendError(c, http.StatusUnauthorized, "Invalid email or password")
-		return
-	}
-
-	// Update last_login timestamp
-	_ = h.queries.UpdateUserLastLogin(ctx, user.ID)
-
-	// Generate tokens
-	accessToken, refreshToken, err := h.generateTokens(user.ID)
-	if err != nil {
-		sendInternalError(c, "Failed to generate tokens", err)
-		return
-	}
-
-	// Return user info with tokens
-	var userResponse struct {
-		ID    int32  `json:"id"`
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	userResponse.ID = user.ID
-	userResponse.Email = user.Email
-	if user.Name.Valid {
-		userResponse.Name = user.Name.String
-	} else {
-		userResponse.Name = ""
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"user":          userResponse,
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"message":       "Login successful",
+	c.JSON(http.StatusGone, gin.H{
+		"error":   "Use Clerk for sign-in",
+		"message": "This endpoint is no longer available. Please use Clerk for sign-in.",
 	})
 }
 
@@ -207,55 +72,13 @@ type RefreshRequest struct {
 }
 
 // Refresh handles POST /api/auth/refresh
-// Generates a new access token using a valid refresh token
+// Deprecated: sessions are now managed by Clerk. Returns 410 Gone.
 func (h *UserHandler) Refresh(c *gin.Context) {
-	// Parse JSON body
-	var req RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		sendBadRequest(c, "Invalid request body", err.Error())
-		return
-	}
-
-	ctx := c.Request.Context()
-
-	// Hash the refresh token to look it up in database
-	tokenHash := auth.HashRefreshToken(req.RefreshToken)
-
-	// Get refresh token from database
-	refreshToken, err := h.queries.GetRefreshTokenByHash(ctx, tokenHash)
-	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			sendError(c, http.StatusUnauthorized, "Invalid refresh token")
-			return
-		}
-		sendInternalError(c, "Failed to fetch refresh token", err)
-		return
-	}
-
-	// Check if token is revoked
-	if refreshToken.RevokedAt.Valid {
-		sendError(c, http.StatusUnauthorized, "Refresh token has been revoked")
-		return
-	}
-
-	// Check if token is expired
-	if refreshToken.ExpiresAt.Before(time.Now()) {
-		sendError(c, http.StatusUnauthorized, "Refresh token has expired")
-		return
-	}
-
-	// Generate new access token
-	accessTokenExpiration := h.getAccessTokenExpiration()
-	accessToken, err := auth.GenerateAccessToken(refreshToken.UserID, accessTokenExpiration)
-	if err != nil {
-		sendInternalError(c, "Failed to generate access token", err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"access_token": accessToken,
-		"message":      "Token refreshed successfully",
+	c.JSON(http.StatusGone, gin.H{
+		"error":   "Use Clerk for sessions",
+		"message": "This endpoint is no longer available. Sessions are managed by Clerk.",
 	})
+	return
 }
 
 // LogoutRequest represents the JSON body for logout

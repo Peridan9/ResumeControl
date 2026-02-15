@@ -114,12 +114,12 @@ export default function Landing() {
               <span className="block">The goal is visibility and control. A detailed dashboard turns your activity into clear numbers and progress insights, so you can see where you stand, spot patterns, and make smarter decisions toward your next opportunity.</span>
             </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/register">
+              <Link to="/sign-up">
                 <Button className="text-lg px-8 py-3 bg-white text-gray-900 hover:bg-gray-100 border-white">
                   Get Started Free
                 </Button>
               </Link>
-              <Link to="/login">
+              <Link to="/sign-in">
                 <Button variant="secondary" className="text-lg px-8 py-3 bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm">
                   Sign In
                 </Button>
@@ -241,7 +241,7 @@ export default function Landing() {
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
             Join ResumeControl today and take control of your job search.
           </p>
-          <Link to="/register">
+          <Link to="/sign-up">
             <Button className="text-lg px-8 py-3">Create Your Free Account</Button>
           </Link>
         </div>

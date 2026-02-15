@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/clerk/clerk-sdk-go/v2/jwks"
 	"github.com/gin-gonic/gin"
 	"github.com/peridan9/resumecontrol/backend/internal/database"
 	"github.com/peridan9/resumecontrol/backend/internal/middleware"
@@ -8,7 +9,8 @@ import (
 
 // Config holds shared dependencies for all handlers
 type Config struct {
-	DB *database.Queries
+	DB        *database.Queries
+	ClerkJWKS *jwks.Client
 }
 
 // SetupRoutes registers all API routes with the Gin router
@@ -34,18 +36,18 @@ func (cfg *Config) SetupRoutes(r *gin.Engine) {
 			authPublic.POST("/refresh", userHandler.Refresh)
 		}
 
-		// Auth routes (protected - require authentication)
+		// Auth routes (protected - require Clerk authentication)
 		authProtected := api.Group("/auth")
-		authProtected.Use(middleware.AuthMiddleware())
+		authProtected.Use(middleware.ClerkAuthMiddleware(cfg.DB, cfg.ClerkJWKS))
 		{
 			authProtected.POST("/logout", userHandler.Logout)
 			authProtected.GET("/me", userHandler.Me)
 			authProtected.PUT("/me", userHandler.UpdateMe)
 		}
 
-		// Protected routes (require authentication)
+		// Protected routes (require Clerk authentication)
 		protected := api.Group("")
-		protected.Use(middleware.AuthMiddleware())
+		protected.Use(middleware.ClerkAuthMiddleware(cfg.DB, cfg.ClerkJWKS))
 		{
 				// Company routes
 			protected.GET("/companies", companyHandler.GetAllCompanies)
