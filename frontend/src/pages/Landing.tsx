@@ -1,17 +1,31 @@
 // Landing page for ResumeControl - public page with information about the system
 
-import { useEffect, useRef, useState } from 'react'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ReactLenis, useLenis } from 'lenis/react'
 import { useAuth } from '../contexts/AuthContext'
 import Button from '../components/ui/Button'
 import Navbar from '../components/layout/Navbar'
 import LoadingState from '../components/ui/LoadingState'
 
+import 'lenis/dist/lenis.css'
+
+/** Updates hero parallax from Lenis scroll; must be rendered inside ReactLenis. */
+function LandingParallax({ heroRef }: { heroRef: RefObject<HTMLDivElement | null> }) {
+  useLenis((lenis) => {
+    if (heroRef.current) {
+      const parallax = lenis.scroll * 0.5
+      heroRef.current.style.transform = `translateY(${parallax}px)`
+    }
+  })
+  return null
+}
+
 export default function Landing() {
   const { isAuthenticated, loading } = useAuth()
   const navigate = useNavigate()
   const heroImageRef = useRef<HTMLDivElement>(null)
-  const dashboardSectionRef = useRef<HTMLDivElement>(null)
+  const [dashboardSectionEl, setDashboardSectionEl] = useState<HTMLDivElement | null>(null)
   const [isVisible, setIsVisible] = useState(false)
 
   // Redirect authenticated users to dashboard
@@ -21,70 +35,37 @@ export default function Landing() {
     }
   }, [isAuthenticated, loading, navigate])
 
-  // Parallax scrolling effect
+  // Scroll-triggered animation for dashboard section (use state for element so effect runs after ref is set)
   useEffect(() => {
-    const handleScroll = () => {
-      if (heroImageRef.current) {
-        const scrolled = window.pageYOffset
-        const parallaxSpeed = 0.5 // Adjust this value to change parallax speed (0.5 = moves at half scroll speed)
-        const parallax = scrolled * parallaxSpeed
-        heroImageRef.current.style.transform = `translateY(${parallax}px)`
-      }
-    }
-
-    // Use requestAnimationFrame for smooth performance
-    let ticking = false
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          handleScroll()
-          ticking = false
-        })
-        ticking = true
-      }
-    }
-
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  // Scroll-triggered animation for dashboard section
-  useEffect(() => {
+    if (!dashboardSectionEl) return
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setIsVisible(true)
-            // Optional: stop observing after animation triggers
             observer.unobserve(entry.target)
           }
         })
       },
       {
-        threshold: 0.2, // Trigger when 20% of element is visible
-        rootMargin: '0px 0px -100px 0px', // Trigger slightly before element enters viewport
+        threshold: 0.2,
+        rootMargin: '0px 0px -100px 0px',
       }
     )
-
-    if (dashboardSectionRef.current) {
-      observer.observe(dashboardSectionRef.current)
-    }
-
-    return () => {
-      if (dashboardSectionRef.current) {
-        observer.unobserve(dashboardSectionRef.current)
-      }
-    }
-  }, [])
+    observer.observe(dashboardSectionEl)
+    return () => observer.unobserve(dashboardSectionEl)
+  }, [dashboardSectionEl])
 
   // Show loading state while checking auth
   if (loading) {
     return <LoadingState fullScreen message="Loading..." />
   }
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Navigation Bar */}
-      <Navbar />
+    <ReactLenis root options={{ lerp: 0.08, duration: 1.2 }}>
+      <LandingParallax heroRef={heroImageRef} />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Navigation Bar */}
+        <Navbar />
 
       {/* Hero Image Section with Overlaid Text */}
       <div className="relative w-full h-[600px] md:h-[700px] overflow-hidden">
@@ -106,7 +87,7 @@ export default function Landing() {
         <div className="relative z-10 h-full flex items-center justify-center">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="bg-black/15 dark:bg-black/25 backdrop-blur-[2px] rounded-2xl px-6 py-8 md:px-10 md:py-10 shadow-lg">
-              <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]" style={{ fontFamily: "'Pacifico', cursive" }}>
+              <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]" style={{ fontFamily: "'Outfit', sans-serif" }}>
                 Organize Your Job Search
               </h2>
               <p className="text-base md:text-lg text-white/90 mb-8 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] max-w-2xl mx-auto space-y-3">
@@ -115,7 +96,7 @@ export default function Landing() {
             </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/sign-up">
-                <Button className="text-lg px-8 py-3 bg-white text-gray-900 hover:bg-gray-100 border-white">
+                <Button className="!bg-gray-800 !text-white !border-gray-800 hover:!bg-gray-700 text-lg px-8 py-3">
                   Get Started Free
                 </Button>
               </Link>
@@ -178,7 +159,7 @@ export default function Landing() {
 
         {/* Dashboard Preview Section with Scroll Animation */}
         <div 
-          ref={dashboardSectionRef}
+          ref={setDashboardSectionEl}
           className="mb-16 overflow-hidden"
         >
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 md:p-12">
@@ -255,7 +236,8 @@ export default function Landing() {
           </p>
         </div>
       </footer>
-    </div>
+      </div>
+    </ReactLenis>
   )
 }
 
