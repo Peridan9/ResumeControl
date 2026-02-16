@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
+import { UserButton } from '@clerk/clerk-react'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import Button from '../ui/Button'
-import UserMenu from './UserMenu'
 
 export default function Navbar() {
   const { isAuthenticated } = useAuth()
@@ -69,7 +69,17 @@ export default function Navbar() {
           </div>
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
-              <UserMenu />
+              <UserButton
+                afterSignOutUrl="/"
+                userProfileUrl="/profile"
+                userProfileMode="navigation"
+                showName
+                appearance={{
+                  elements: {
+                    avatarBox: 'w-8 h-8',
+                  },
+                }}
+              />
             ) : (
               <span className="text-sm text-gray-600 dark:text-gray-300">Job Application Manager</span>
             )}

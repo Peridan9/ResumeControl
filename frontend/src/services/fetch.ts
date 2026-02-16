@@ -45,7 +45,9 @@ export async function fetchAPI<T>(
       error: 'An error occurred',
       details: response.statusText,
     }))
-    throw new Error(error.error || error.details || 'Request failed')
+    const err = new Error(error.error || error.details || 'Request failed') as Error & { status?: number }
+    err.status = response.status
+    throw err
   }
 
   return response.json()

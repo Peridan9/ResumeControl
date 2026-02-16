@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { UserAvatar } from '@clerk/clerk-react'
 import {
   Squares2X2Icon,
   UserIcon,
@@ -19,9 +20,9 @@ export default function Sidebar() {
   const location = useLocation()
 
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 shadow-sm min-h-[calc(100vh-4rem)]" aria-label="Main navigation">
-      <nav className="p-4" aria-label="Primary navigation">
-        <ul className="space-y-2" role="list">
+    <aside className="w-64 bg-white dark:bg-gray-800 shadow-sm min-h-[calc(100vh-4rem)] flex flex-col" aria-label="Main navigation">
+      <nav className="p-4 flex flex-col flex-1 min-h-0" aria-label="Primary navigation">
+        <ul className="space-y-2 flex-shrink-0" role="list">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href
             const Icon = item.icon
@@ -37,7 +38,7 @@ export default function Sidebar() {
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon
-                    className={`w-5 h-5 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`w-5 h-5 shrink-0 ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}
                     aria-hidden="true"
                   />
                   <span>{item.name}</span>
@@ -46,6 +47,27 @@ export default function Sidebar() {
             )
           })}
         </ul>
+        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <Link
+            to="/profile"
+            className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+              location.pathname.startsWith('/profile')
+                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+            aria-current={location.pathname.startsWith('/profile') ? 'page' : undefined}
+          >
+            <UserAvatar
+              appearance={{
+                elements: {
+                  rootBox: 'w-5 h-5 shrink-0',
+                  avatarBox: 'w-5 h-5',
+                },
+              }}
+            />
+            <span>Profile</span>
+          </Link>
+        </div>
       </nav>
     </aside>
   )
