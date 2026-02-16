@@ -35,8 +35,6 @@ interface ApplicationTableProps {
   isDeleting?: boolean
 }
 
-export const STATUS_OPTIONS = STATUS_OPTIONS_WITH_ALL
-
 export default function ApplicationTable({
   applications,
   jobs,
@@ -254,7 +252,7 @@ export default function ApplicationTable({
           onChange={(e) => onStatusFilterChange(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
         >
-          {STATUS_OPTIONS.map((option) => (
+          {STATUS_OPTIONS_WITH_ALL.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -263,7 +261,7 @@ export default function ApplicationTable({
       </div>
       {statusFilter && (
         <p className="text-sm text-gray-600">
-          Showing {applications.length} application{applications.length !== 1 ? 's' : ''} with status "{STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}"
+          Showing {applications.length} application{applications.length !== 1 ? 's' : ''} with status "{STATUS_OPTIONS_WITH_ALL.find((o) => o.value === statusFilter)?.label}"
         </p>
       )}
     </div>

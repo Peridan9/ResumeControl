@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
  * @param debounceDelay - Delay in milliseconds for auto-save (default: 300)
  * @returns Object with form values, setters, and utility functions
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useFormDraft<T extends Record<string, any>>(
   storageKey: string,
   initialValue: T,

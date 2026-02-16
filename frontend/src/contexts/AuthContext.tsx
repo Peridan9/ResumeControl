@@ -1,5 +1,6 @@
 // Auth context: drives from Clerk and exposes backend user (from GET /auth/me)
 
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useAuth as useClerkAuth } from '@clerk/clerk-react'
 import { authAPI, setClerkTokenGetter, type User } from '../services/auth'
@@ -107,11 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [clerkLoaded, isSignedIn, getToken, user])
 
-  const login = useCallback(async (_email: string, _password: string) => {
+  const login = useCallback(async () => {
     throw new Error('Use Clerk sign-in at /sign-in')
   }, [])
 
-  const register = useCallback(async (_email: string, _password: string, _name?: string) => {
+  const register = useCallback(async () => {
     throw new Error('Use Clerk sign-up at /sign-up')
   }, [])
 

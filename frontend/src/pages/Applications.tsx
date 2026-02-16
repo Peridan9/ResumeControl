@@ -1,14 +1,15 @@
 import { useState, useMemo } from 'react'
 import { useApplications } from '../hooks/useApplications'
 import { useToast } from '../hooks/useToast'
-import ApplicationTable, { STATUS_OPTIONS } from '../components/applications/ApplicationTable'
+import ApplicationTable from '../components/applications/ApplicationTable'
+import { STATUS_OPTIONS_WITH_ALL } from '../constants/status'
 import ApplicationForm from '../components/applications/ApplicationForm'
 import ApplicationDetailDrawer from '../components/applications/ApplicationDetailDrawer'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import ErrorMessage from '../components/ui/ErrorMessage'
 import EmptyState from '../components/ui/EmptyState'
-import { PlusIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 
 export default function Applications() {
   const toast = useToast()
@@ -134,7 +135,7 @@ export default function Applications() {
           isDeleting={isDeleting}
           emptyMessage={
             statusFilter
-              ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
+              ? `No applications found with status "${STATUS_OPTIONS_WITH_ALL.find((o) => o.value === statusFilter)?.label}".`
               : 'No applications found.'
           }
         />

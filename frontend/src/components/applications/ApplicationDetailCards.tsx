@@ -103,9 +103,7 @@ JobCard.displayName = 'JobCard'
 const ContactCard = memo(({ contact }: { contact: Contact | undefined }) => {
   if (!contact) return null
 
-  const email = useMemo(() => contact.email, [contact.email])
-  const phone = useMemo(() => contact.phone, [contact.phone])
-  const linkedin = useMemo(() => contact.linkedin, [contact.linkedin])
+  const { email, phone, linkedin } = contact
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
