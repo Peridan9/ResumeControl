@@ -1,13 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useTheme } from '../../contexts/ThemeContext'
 import { UserButton } from '@clerk/clerk-react'
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import Button from '../ui/Button'
 
 export default function Navbar() {
   const { isAuthenticated } = useAuth()
-  const { isDark, toggleTheme } = useTheme()
   const location = useLocation()
   
   // Check if we're on the landing page
@@ -31,20 +28,6 @@ export default function Navbar() {
               <Link to="/sign-up" aria-label="Create a new account">
                 <Button className="px-6 py-2 text-sm">Get Started</Button>
               </Link>
-              
-              {/* Dark Mode Toggle Button - moved to the right */}
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                aria-pressed={isDark}
-              >
-                {isDark ? (
-                  <SunIcon className="w-5 h-5" aria-hidden="true" />
-                ) : (
-                  <MoonIcon className="w-5 h-5" aria-hidden="true" />
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -83,20 +66,6 @@ export default function Navbar() {
             ) : (
               <span className="text-sm text-gray-600 dark:text-gray-300">Job Application Manager</span>
             )}
-            
-            {/* Dark Mode Toggle Button - moved to the right */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              aria-pressed={isDark}
-            >
-              {isDark ? (
-                <SunIcon className="w-5 h-5" aria-hidden="true" />
-              ) : (
-                <MoonIcon className="w-5 h-5" aria-hidden="true" />
-              )}
-            </button>
           </div>
         </div>
       </div>
