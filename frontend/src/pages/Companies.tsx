@@ -7,6 +7,8 @@ import CompanyForm from '../components/companies/CompanyForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import ErrorMessage from '../components/ui/ErrorMessage'
+import EmptyState from '../components/ui/EmptyState'
+import { BuildingOfficeIcon } from '@heroicons/react/24/outline'
 
 export default function Companies() {
   const toast = useToast()
@@ -84,19 +86,25 @@ export default function Companies() {
         </div>
       )}
 
-      {/* Companies Table */}
-      <CompanyTable
-        companies={companies}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        emptyMessage={
-          companies.length === 0 && !loading
-            ? 'No companies found. Create your first company to get started.'
-            : 'No companies found.'
-        }
-        loading={loading}
-        isDeleting={isDeleting}
-      />
+      {(!companies || companies.length === 0) && !loading ? (
+        <EmptyState
+          title="No companies yet!"
+          description="Keep a list of companies you're interested in or have applied to."
+          actionLabel="Add Company"
+          onAction={handleCreate}
+          icon={<BuildingOfficeIcon />}
+        />
+      ) : (
+        /* Companies Table */
+        <CompanyTable
+          companies={companies}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          emptyMessage="No companies found."
+          loading={loading}
+          isDeleting={isDeleting}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <Modal

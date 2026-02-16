@@ -208,14 +208,16 @@ export function transformContact(contact: BackendContact): NormalizedContact {
 /**
  * Transforms an array of backend Companies to normalized Companies
  */
-export function transformCompanies(companies: BackendCompany[]): NormalizedCompany[] {
+export function transformCompanies(companies: BackendCompany[] | null): NormalizedCompany[] {
+  if (!companies) return []
   return companies.map(transformCompany)
 }
 
 /**
  * Transforms an array of backend Jobs to normalized Jobs
  */
-export function transformJobs(jobs: BackendJob[]): NormalizedJob[] {
+export function transformJobs(jobs: BackendJob[] | null): NormalizedJob[] {
+  if (!jobs) return []
   return jobs.map(transformJob)
 }
 
@@ -223,15 +225,17 @@ export function transformJobs(jobs: BackendJob[]): NormalizedJob[] {
  * Transforms an array of backend Applications to normalized Applications
  */
 export function transformApplications(
-  applications: BackendApplication[]
+  applications: BackendApplication[] | null
 ): NormalizedApplication[] {
+  if (!applications) return []
   return applications.map(transformApplication)
 }
 
 /**
  * Transforms an array of backend Contacts to normalized Contacts
  */
-export function transformContacts(contacts: BackendContact[]): NormalizedContact[] {
+export function transformContacts(contacts: BackendContact[] | null): NormalizedContact[] {
+  if (!contacts) return []
   return contacts.map(transformContact)
 }
 

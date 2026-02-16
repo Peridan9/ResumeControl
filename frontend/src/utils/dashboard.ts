@@ -11,6 +11,7 @@ export const calculateStatusBreakdown = (applications: Application[]): Record<st
   STATUS_OPTIONS.forEach((status) => {
     breakdown[status.value] = 0
   })
+  if (!applications) return breakdown
   applications.forEach((app) => {
     const status = app.status.toLowerCase()
     if (breakdown[status] !== undefined) {
@@ -36,6 +37,8 @@ export const calculateTimeBasedStats = (applications: Application[]) => {
   let thisWeek = 0
   let today = 0
 
+  if (!applications) return { thisMonth, thisWeek, today }
+
   applications.forEach((app) => {
     const appDate = new Date(app.applied_date)
     if (appDate >= startOfMonth) thisMonth++
@@ -60,6 +63,7 @@ export const getRecentApplications = (
   companies: Company[],
   limit: number
 ): Array<Application & { job?: Job; company?: Company }> => {
+  if (!applications) return []
   // Sort by applied_date descending (most recent first)
   const sorted = [...applications].sort((a, b) => {
     const dateA = new Date(a.applied_date).getTime()

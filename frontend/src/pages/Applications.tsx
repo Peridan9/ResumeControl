@@ -7,6 +7,8 @@ import ApplicationDetailDrawer from '../components/applications/ApplicationDetai
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import ErrorMessage from '../components/ui/ErrorMessage'
+import EmptyState from '../components/ui/EmptyState'
+import { PlusIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 
 export default function Applications() {
   const toast = useToast()
@@ -109,24 +111,34 @@ export default function Applications() {
         </div>
       )}
 
-      <ApplicationTable
-        applications={filteredApplications}
-        jobs={jobs}
-        companies={companies}
-        contacts={contacts}
-        loading={loading}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onRowClick={(app) => setSelectedApplicationId(app.id)}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        isDeleting={isDeleting}
-        emptyMessage={
-          statusFilter
-            ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
-            : 'No applications found. Create your first application to get started.'
-        }
-      />
+      {(!applications || applications.length === 0) && !loading ? (
+        <EmptyState
+          title="No applications yet!"
+          description="Keep track of all your job applications in one place. Add your first one to get started."
+          actionLabel="Add Application"
+          onAction={handleCreate}
+          icon={<ClipboardDocumentListIcon />}
+        />
+      ) : (
+        <ApplicationTable
+          applications={filteredApplications}
+          jobs={jobs}
+          companies={companies}
+          contacts={contacts}
+          loading={loading}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          onRowClick={(app) => setSelectedApplicationId(app.id)}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isDeleting={isDeleting}
+          emptyMessage={
+            statusFilter
+              ? `No applications found with status "${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label}".`
+              : 'No applications found.'
+          }
+        />
+      )}
 
       <ApplicationDetailDrawer
         applicationId={selectedApplicationId}

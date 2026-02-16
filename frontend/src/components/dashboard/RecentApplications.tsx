@@ -1,7 +1,10 @@
 import { memo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Application, Job, Company } from '../../types'
 import { formatDate } from '../../utils/dashboard'
 import StatusBadge from '../ui/StatusBadge'
+import EmptyState from '../ui/EmptyState'
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 
 interface RecentApplicationsProps {
   applications: Array<Application & { job?: Job; company?: Company }>
@@ -9,13 +12,19 @@ interface RecentApplicationsProps {
 }
 
 function RecentApplications({ applications, onApplicationClick }: RecentApplicationsProps) {
+  const navigate = useNavigate()
+
   if (applications.length === 0) {
     return (
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Applications</h2>
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-600">No applications found.</p>
-        </div>
+        <EmptyState
+          title="No applications yet"
+          description="Your most recent applications will appear here."
+          actionLabel="Add Your First Application"
+          onAction={() => navigate('/applications')}
+          icon={<ClipboardDocumentListIcon />}
+        />
       </div>
     )
   }

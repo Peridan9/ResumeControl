@@ -8,6 +8,8 @@ import ContactForm from '../components/contacts/ContactForm'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import ErrorMessage from '../components/ui/ErrorMessage'
+import EmptyState from '../components/ui/EmptyState'
+import { UserPlusIcon } from '@heroicons/react/24/outline'
 
 export default function Contacts() {
   const queryClient = useQueryClient()
@@ -169,19 +171,25 @@ export default function Contacts() {
         </div>
       )}
 
-      {/* Contacts Table */}
-      <ContactTable
-        contacts={contacts}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        emptyMessage={
-          (!contacts || contacts.length === 0) && !loading
-            ? 'No contacts found. Create your first contact to get started.'
-            : 'No contacts found.'
-        }
-        loading={loading}
-        isDeleting={deleteContactMutation.isPending}
-      />
+      {(!contacts || contacts.length === 0) && !loading ? (
+        <EmptyState
+          title="No contacts yet!"
+          description="Save contact information for recruiters, hiring managers, and references."
+          actionLabel="Add Contact"
+          onAction={handleCreate}
+          icon={<UserPlusIcon />}
+        />
+      ) : (
+        /* Contacts Table */
+        <ContactTable
+          contacts={contacts}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          emptyMessage="No contacts found."
+          loading={loading}
+          isDeleting={deleteContactMutation.isPending}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <Modal
