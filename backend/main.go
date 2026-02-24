@@ -25,9 +25,9 @@ func main() {
 	}
 
 	// Get database URL from environment
-	dbURL := os.Getenv("NEON_DB_URL_DIRECT")
+	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		log.Fatal("NEON_DB_URL_DIRECT environment variable is not set")
+		log.Fatal("DATABASE_URL environment variable is not set")
 	}
 
 	// Connect to database
@@ -39,24 +39,24 @@ func main() {
 	defer db.Close() // Close connection when main function exits
 
 	// Configure connection pool settings
-	// Optimized for Neon serverless Postgres to reduce idle connections and enable scale-to-zero
+	// Optimized for RDS and production workloads
 	// Get environment to adjust pool settings accordingly
 	env := os.Getenv("ENV")
 	if env == "production" {
-		db.SetMaxOpenConns(15)              // Moderate for production workloads
-		db.SetMaxIdleConns(3)               // Low idle count to enable scale-to-zero
+		db.SetMaxOpenConns(25)              // Higher for RDS production workloads
+		db.SetMaxIdleConns(5)               // Maintain some idle connections for performance
 	} else {
 		db.SetMaxOpenConns(10)              // Lower for dev/staging
 		db.SetMaxIdleConns(2)               // Minimal idle connections
 	}
-	db.SetConnMaxIdleTime(2 * time.Minute)  // Close idle connections quickly to reduce CU costs
+	db.SetConnMaxIdleTime(5 * time.Minute)  // Close idle connections reasonably
 	db.SetConnMaxLifetime(30 * time.Minute) // Reasonable upper bound to prevent stale connections
 
-	// Test the connection with timeout to handle cold starts gracefully
+	// Test the connection with timeout to handle potential latency gracefully
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
-		log.Fatalf("❌ Failed to ping database: %v (may be cold start, check Neon dashboard)", err)
+		log.Fatalf("❌ Failed to ping database: %v (check RDS security groups, credentials, and connectivity)", err)
 	}
 	log.Println("✅ Successfully connected to database!")
 
