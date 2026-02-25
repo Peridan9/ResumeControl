@@ -17,7 +17,8 @@ import (
 // setupTestDB creates a database connection and queries instance for testing
 func setupTestDB(t *testing.T) (*sql.DB, *database.Queries) {
 	// Load environment variables from .env file (if it exists)
-	_ = godotenv.Load()
+	// Check current and parent directory (for root .env)
+	_ = godotenv.Load(".env", "../.env")
 
 	// Check if DB_URL is set
 	dbURL := os.Getenv("DB_URL")

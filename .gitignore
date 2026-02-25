@@ -1,41 +1,72 @@
-# Playwright MCP screenshots and artifacts
-.playwright-mcp/
-
 # OS files
 .DS_Store
 Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
 # IDE
 .vscode/
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*.sw?
 *~
 
 # Environment variables
 .env
 .env.local
+*.local
 
 # Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-node_modules
+# Dependencies
+node_modules/
+vendor/
 
-#cursor files
+# Playwright MCP
+.playwright-mcp/
+
+# Cursor
 .cursor/
 
-# Project tracking files
+# Project tracking and docs
 TODO.md
 problems.md
+md_files/
+docs/
 
 # Scripts
 scripts/
 scripts/push_local_db_to_neon.sh
 
-<<<<<<< HEAD
-#docs
-docs/
-=======
-# certs
+# Certs
 nginx/certs/
->>>>>>> bd0032124539e63114fbe75ce3b5e85319df2468
+
+# Frontend specific
+frontend/dist/
+frontend/dist-ssr/
+
+# Backend specific
+backend/backend
+backend/bin/
+backend/*.exe
+backend/*.exe~
+backend/*.dll
+backend/*.so
+backend/*.dylib
+backend/*.test
+backend/*.out
+backend/go.work
+backend/*.db
+backend/*.sqlite
+backend/POSTMAN_TESTS/

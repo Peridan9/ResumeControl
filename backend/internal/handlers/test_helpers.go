@@ -26,9 +26,10 @@ type TestUser struct {
 func setupTestRouter(t *testing.T) (*gin.Engine, *database.Queries, *sql.DB) {
 	// Load environment variables from .env file in backend directory
 	// Try multiple paths to find .env file depending on where tests are run from
-	_ = godotenv.Load()           // Current directory
-	_ = godotenv.Load("../.env")  // Try backend/.env if running from handlers directory
-	_ = godotenv.Load("../../.env") // Try backend/.env if running from internal/handlers
+	_ = godotenv.Load()               // Current directory
+	_ = godotenv.Load("../.env")      // Try parent directory
+	_ = godotenv.Load("../../.env")   // Try two levels up
+	_ = godotenv.Load("../../../.env") // Try root directory from internal/handlers
 
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {

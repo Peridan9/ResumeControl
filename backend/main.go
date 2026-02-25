@@ -19,15 +19,20 @@ import (
 
 func main() {
 	// Load environment variables from .env file
-	// If .env doesn't exist, we'll use environment variables from the system
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system environment variables")
-	}
+	// We check both local and parent directory (for root .env)
+	// We call them separately so it doesn't fail if one is missing
+	_ = godotenv.Load()           // Load from current directory (backend/.env)
+	_ = godotenv.Load("../.env")  // Load from parent directory (root .env)
 
 	// Get database URL from environment
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		log.Fatal("DATABASE_URL environment variable is not set")
+		// Fallback to DB_URL if DATABASE_URL is not set
+		dbURL = os.Getenv("DB_URL")
+	}
+
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL or DB_URL environment variable is not set")
 	}
 
 	// Connect to database
